@@ -2202,25 +2202,19 @@ function authErrorMessage(err){
   if(code.includes('network-request-failed')) return 'Geen verbinding — check je internet.';
   return 'Inloggen mislukt: ' + (err && err.message ? err.message : 'onbekende fout');
 }
-let justLoggedIn = false;
 function tryUnlock(){
   if(!fbAuth){ gateError.textContent = 'Inloggen is nu niet beschikbaar, probeer het later opnieuw.'; return; }
   const email = (gateEmailInput.value||'').trim();
   const pwd = gateInput.value;
   if(!email || !pwd){ gateError.textContent = 'Vul e-mailadres en wachtwoord in.'; return; }
   gateBtn.disabled = true; gateError.textContent = 'Bezig met inloggen…';
-  justLoggedIn = true;
-  const signInPromise = fbAuth.setPersistence(firebase.auth.Auth.Persistence.SESSION)
-    .catch(()=>{})
-    .then(()=> fbAuth.signInWithEmailAndPassword(email, pwd));
   Promise.race([
-    signInPromise,
+    fbAuth.signInWithEmailAndPassword(email, pwd),
     new Promise((_, reject)=> setTimeout(()=> reject({code:'timeout'}), 10000))
   ])
     .then(()=>{ gateBtn.disabled = false; gateError.textContent = ''; })
     .catch(err=>{
       gateBtn.disabled = false;
-      justLoggedIn = false;
       gateError.textContent = err && err.code === 'timeout'
         ? 'Inloggen duurt te lang — mogelijk een verbindingsprobleem. Probeer het opnieuw of gebruik een andere browser.'
         : authErrorMessage(err);
@@ -2254,17 +2248,6 @@ setInterval(()=>{
 if(fbAuth){
   fbAuth.onAuthStateChanged(user=>{
     if(user){
-      if(justLoggedIn){
-        justLoggedIn = false;
-        unlockApp();
-        return;
-      }
-      let last = 0;
-      try{ last = parseInt(localStorage.getItem(LAST_ACTIVITY_KEY)||'0',10); }catch(e){}
-      if(last && (Date.now() - last) > IDLE_TIMEOUT_MS){
-        fbAuth.signOut().catch(()=>{});
-        return;
-      }
       unlockApp();
     } else {
       gateEl.classList.remove('hidden');
