@@ -419,10 +419,16 @@ function lsSetAll(name, arr){ try{ localStorage.setItem(LS_PREFIX+name, JSON.str
 function lsGetDoc(key){ try{ return JSON.parse(localStorage.getItem(LS_PREFIX+key)||'null'); }catch(e){ return null; } }
 function lsSetDoc(key, obj){ try{ localStorage.setItem(LS_PREFIX+key, JSON.stringify(obj)); }catch(e){} }
 
+function withTimeout(promise, ms){
+  return Promise.race([
+    promise,
+    new Promise((_, reject)=> setTimeout(()=> reject(new Error('timeout')), ms))
+  ]);
+}
 async function getCompany(){
   if(useDb){
-    try{ const snap = await db.doc('settings/company').get(); return snap.exists ? Object.assign({}, snap.data()) : null; }
-    catch(e){ return lsGetDoc('company'); }
+    try{ const snap = await withTimeout(db.doc('settings/company').get(), 8000); return snap.exists ? Object.assign({}, snap.data()) : null; }
+    catch(e){ console.error('getCompany failed:', e); return lsGetDoc('company'); }
   }
   return lsGetDoc('company');
 }
@@ -442,9 +448,9 @@ async function updateCompany(patch){
 async function listCollection(name){
   if(useDb){
     try{
-      const snap = await db.collection(name).get();
+      const snap = await withTimeout(db.collection(name).get(), 8000);
       return snap.docs.map(d=>Object.assign({id:d.id}, d.data()));
-    }catch(e){ return lsGetAll(name); }
+    }catch(e){ console.error('listCollection('+name+') failed:', e); return lsGetAll(name); }
   }
   return lsGetAll(name);
 }
