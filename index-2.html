@@ -1,0 +1,2266 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WOLF — Facturatie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.3.0/firebase-app-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.3.0/firebase-auth-compat.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/12.3.0/firebase-firestore-compat.min.js"></script>
+<style>
+:root{
+  --ink:#151821;
+  --ink-soft:#5b6472;
+  --line:#e2e6ec;
+  --surface:#ffffff;
+  --surface-2:#f4f6f9;
+  --surface-3:#eaeef3;
+  --brand-black:#12141c;
+  --brand-black-2:#1b1e29;
+  --brand-blue:#5c85b9;
+  --brand-blue-light:#9db8dd;
+  --brand-blue-deep:#3c5f8f;
+  --danger:#c15b5b;
+  --danger-bg:#fbeeee;
+  --success:#3f8f63;
+  --success-bg:#eaf5ef;
+  --warn:#b9852f;
+  --warn-bg:#faf1e2;
+  --radius:10px;
+  --radius-sm:6px;
+  --shadow:0 1px 2px rgba(18,20,28,0.06), 0 6px 20px -12px rgba(18,20,28,0.18);
+  color-scheme: light;
+}
+:root[data-theme="dark"], :root:not([data-theme="light"]) {
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ink:#e9ecf2;
+    --ink-soft:#a2acbc;
+    --line:#2a2e3a;
+    --surface:#1a1d27;
+    --surface-2:#14161e;
+    --surface-3:#22252f;
+    --brand-black:#0b0c11;
+    --brand-black-2:#15171f;
+    --danger-bg:#2c1c1d;
+    --success-bg:#132a20;
+    --warn-bg:#2b2214;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"]{
+  --ink:#e9ecf2;
+  --ink-soft:#a2acbc;
+  --line:#2a2e3a;
+  --surface:#1a1d27;
+  --surface-2:#14161e;
+  --surface-3:#22252f;
+  --brand-black:#0b0c11;
+  --brand-black-2:#15171f;
+  --danger-bg:#2c1c1d;
+  --success-bg:#132a20;
+  --warn-bg:#2b2214;
+  color-scheme: dark;
+}
+*{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:var(--surface-2);
+  color:var(--ink);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-size:14.5px;
+  line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+h1,h2,h3,.disp{font-family:'Space Grotesk',sans-serif;letter-spacing:-0.01em;}
+button{font-family:inherit;}
+a{color:var(--brand-blue-deep);}
+::selection{background:var(--brand-blue-light);color:#12141c;}
+
+/* ---------- shell layout ---------- */
+#shell{display:flex;min-height:100vh;}
+#sidebar{
+  width:232px;flex:none;
+  background:var(--brand-black);
+  color:#dfe6f2;
+  display:flex;flex-direction:column;
+  padding:18px 14px calc(18px + env(safe-area-inset-bottom,0px));
+  position:sticky;top:0;height:100vh;
+  overflow-y:auto;
+}
+#sidebar .logowrap{padding:6px 8px 20px;}
+#sidebar .logowrap img{width:100%;max-width:150px;display:block;}
+.navlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px;flex:1;}
+.navlist button{
+  width:100%;text-align:left;background:none;border:none;color:#c4cddc;
+  padding:10px 12px;border-radius:8px;font-size:14px;font-weight:500;
+  cursor:pointer;display:flex;align-items:center;gap:10px;transition:background .12s,color .12s;
+}
+.navlist button svg{flex:none;opacity:.85;}
+.navlist button:hover{background:var(--brand-black-2);color:#fff;}
+.navlist button.active{background:var(--brand-blue-deep);color:#fff;}
+.sidebar-foot{padding:10px 10px 2px;border-top:1px solid #262a36;margin-top:10px;font-size:12px;color:#7f8aa0;}
+.sidebar-foot strong{color:#c4cddc;display:block;font-size:13px;margin-bottom:2px;}
+
+#topbar{
+  display:none;
+  position:sticky;top:0;z-index:30;
+  padding-top:env(safe-area-inset-top,0px);
+  background:var(--brand-black);color:#fff;
+  align-items:center;gap:12px;padding:12px 14px;
+}
+#topbar img{height:22px;}
+#topbar .hamburger{background:none;border:none;color:#fff;padding:6px;cursor:pointer;}
+#topbar .hamburger svg{display:block;}
+
+#main{flex:1;min-width:0;display:flex;flex-direction:column;}
+#content{flex:1;padding:26px 32px 60px;max-width:1180px;width:100%;margin:0 auto;}
+.pagehead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+.pagehead h1{font-size:22px;margin:0 0 4px;color:var(--ink);}
+.pagehead p{margin:0;color:var(--ink-soft);font-size:13.5px;}
+
+.btn{
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  padding:9px 15px;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;gap:7px;transition:transform .05s, border-color .12s, background .12s;
+  white-space:nowrap;
+}
+.btn:hover{border-color:var(--brand-blue);}
+.btn:active{transform:scale(.98);}
+.btn-primary{background:var(--brand-blue-deep);border-color:var(--brand-blue-deep);color:#fff;}
+.btn-primary:hover{background:var(--brand-blue);border-color:var(--brand-blue);}
+.btn-danger{color:var(--danger);border-color:var(--danger);background:transparent;}
+.btn-danger:hover{background:var(--danger-bg);}
+.btn-ghost{border-color:transparent;background:transparent;}
+.btn-ghost:hover{background:var(--surface-3);border-color:transparent;}
+.btn-sm{padding:6px 10px;font-size:12.5px;border-radius:7px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.btn svg{flex:none;}
+
+/* cards / dashboard */
+.grid-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;}
+.stat-card .label{font-size:12.5px;color:var(--ink-soft);font-weight:600;margin-bottom:8px;}
+.stat-card .value{font-family:'Space Grotesk';font-size:24px;font-weight:600;}
+.stat-card .sub{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+.stat-card.accent{background:var(--brand-black);border-color:var(--brand-black);color:#fff;}
+.stat-card.accent .label{color:#9db3d1;}
+.stat-card.accent .value{color:#fff;}
+.stat-card.accent .sub{color:#8b98af;}
+
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+.panel + .panel{margin-top:18px;}
+.panel-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;}
+.panel-head h3{margin:0;font-size:15px;}
+
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+thead th{text-align:left;font-size:11.5px;text-transform:none;color:var(--ink-soft);font-weight:600;padding:10px 18px;border-bottom:1px solid var(--line);background:var(--surface-2);}
+tbody td{padding:12px 18px;border-bottom:1px solid var(--line);vertical-align:middle;}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface-2);}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+.rowactions{display:flex;gap:6px;justify-content:flex-end;}
+.emptystate{padding:44px 20px;text-align:center;color:var(--ink-soft);}
+.emptystate .big{font-family:'Space Grotesk';font-size:16px;color:var(--ink);margin-bottom:6px;}
+
+.tag{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:100px;font-size:11.5px;font-weight:600;}
+.tag-concept{background:var(--surface-3);color:var(--ink-soft);}
+.tag-verzonden{background:#e7eef8;color:var(--brand-blue-deep);}
+.tag-late{background:var(--danger-bg);color:var(--danger);}
+.tag-betaald{background:var(--success-bg);color:var(--success);}
+.tag-credit{background:var(--danger-bg);color:var(--danger);}
+.tag-actief{background:var(--success-bg);color:var(--success);}
+.tag-inactief{background:var(--surface-3);color:var(--ink-soft);}
+
+.filters{display:flex;gap:6px;flex-wrap:wrap;}
+.filters button{border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);padding:6px 12px;border-radius:100px;font-size:12.5px;font-weight:600;cursor:pointer;}
+.filters button.active{background:var(--brand-black);color:#fff;border-color:var(--brand-black);}
+
+/* forms */
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--ink-soft);margin-bottom:5px;}
+.field input[type=text],.field input[type=email],.field input[type=tel],.field input[type=number],.field input[type=date],.field select,.field textarea{
+  width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:8px;font-size:14px;font-family:inherit;
+  background:var(--surface);color:var(--ink);
+}
+.field textarea{resize:vertical;min-height:70px;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:2px solid var(--brand-blue-light);outline-offset:0;border-color:var(--brand-blue);}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.field-row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:14px;}
+.checkfield{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink);}
+.hint{font-size:12px;color:var(--ink-soft);margin-top:4px;}
+fieldset{border:none;padding:0;margin:0 0 20px;}
+legend{font-family:'Space Grotesk';font-size:13.5px;font-weight:600;padding:0 0 10px;color:var(--ink);}
+
+/* modal */
+.overlay{position:fixed;inset:0;background:rgba(12,13,18,0.5);display:flex;align-items:flex-start;justify-content:center;z-index:100;padding:26px 14px;overflow-y:auto;}
+.overlay.hidden{display:none;}
+.modal{background:var(--surface);border-radius:14px;max-width:560px;width:100%;box-shadow:0 20px 60px -20px rgba(0,0,0,0.4);margin:auto;}
+.modal.wide{max-width:800px;}
+.modal-head{display:flex;align-items:center;justify-content:space-between;padding:18px 22px;border-bottom:1px solid var(--line);}
+.modal-head h2{margin:0;font-size:17px;}
+.modal-body{padding:20px 22px;max-height:70vh;overflow-y:auto;}
+.modal-foot{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--line);}
+.iconbtn{background:none;border:none;cursor:pointer;color:var(--ink-soft);padding:6px;border-radius:6px;}
+.iconbtn:hover{background:var(--surface-3);color:var(--ink);}
+
+/* invoice line editor */
+.lines-table{width:100%;border-collapse:collapse;margin-bottom:10px;}
+.lines-table th{font-size:11px;text-align:left;color:var(--ink-soft);padding:0 6px 6px;font-weight:600;}
+.lines-table td{padding:4px 6px;vertical-align:top;}
+.lines-table input{width:100%;padding:7px 8px;border:1px solid var(--line);border-radius:6px;font-size:13.5px;background:var(--surface);color:var(--ink);}
+.lines-table .linetotal{padding:8px 4px;font-variant-numeric:tabular-nums;white-space:nowrap;font-size:13.5px;}
+.totalsbox{margin-left:auto;width:260px;font-size:13.5px;}
+.totalsbox .row{display:flex;justify-content:space-between;padding:5px 0;}
+.totalsbox .row.total{border-top:1px solid var(--line);margin-top:4px;padding-top:9px;font-weight:700;font-size:15px;font-family:'Space Grotesk';}
+.unbilled-list{border:1px solid var(--line);border-radius:8px;max-height:180px;overflow-y:auto;margin-bottom:14px;}
+.unbilled-list label{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer;}
+.unbilled-list label:last-child{border-bottom:none;}
+.unbilled-list label:hover{background:var(--surface-2);}
+
+/* invoice preview (also used as print source) */
+.invoice-doc{background:#fff;color:#1a1a1a;border-radius:10px;padding:40px;max-width:720px;margin:0 auto;font-size:13px;}
+.invoice-doc .idoc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:34px;gap:20px;}
+.invoice-doc .idoc-top img{height:90px;}
+.invoice-doc .idoc-company{text-align:right;font-size:12px;line-height:1.55;color:#333;}
+.invoice-doc .idoc-company strong{color:#111;font-size:13.5px;}
+.invoice-doc h2.idoc-title{font-family:'Space Grotesk';font-size:26px;margin:0 0 2px;color:#3c5f8f;}
+.invoice-doc h2.idoc-title.credit{color:#b34848;}
+.invoice-doc .idoc-meta{color:#555;font-size:12.5px;margin-bottom:26px;}
+.invoice-doc .idoc-to{margin-bottom:26px;}
+.invoice-doc .idoc-to .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:4px;}
+.invoice-doc .idoc-customernote{display:block;font-size:12px;color:#555;margin-top:4px;font-style:italic;}
+.invoice-doc table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+.invoice-doc thead th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#777;text-align:left;padding:0 8px 8px 0;border-bottom:1.5px solid #222;}
+.invoice-doc tbody td{padding:9px 8px 9px 0;border-bottom:1px solid #e6e6e6;font-size:13px;}
+.invoice-doc td.num,.invoice-doc th.num{text-align:right;font-variant-numeric:tabular-nums;}
+.invoice-doc .idoc-totals{width:260px;margin-left:auto;font-size:13px;}
+.invoice-doc .idoc-totals .row{display:flex;justify-content:space-between;padding:4px 0;}
+.invoice-doc .idoc-totals .row.total{border-top:1.5px solid #222;margin-top:4px;padding-top:8px;font-weight:700;font-size:15px;}
+.invoice-doc .idoc-footer{margin-top:32px;padding-top:16px;border-top:1px solid #e6e6e6;font-size:11.5px;color:#777;white-space:pre-line;}
+
+.banner{display:flex;align-items:center;gap:10px;background:var(--warn-bg);color:#8a611f;border:1px solid #eddcb3;padding:11px 16px;border-radius:10px;margin-bottom:18px;font-size:13px;}
+:root[data-theme="dark"] .banner{color:#e8c789;border-color:#5a4520;}
+.banner button{margin-left:auto;}
+
+.toast-wrap{position:fixed;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);z-index:200;display:flex;flex-direction:column;gap:8px;align-items:center;}
+.toast{background:var(--brand-black);color:#fff;padding:10px 18px;border-radius:100px;font-size:13.5px;box-shadow:0 8px 24px -8px rgba(0,0,0,0.4);}
+
+.helpline{color:var(--ink-soft);font-size:12.5px;}
+.searchbox{position:relative;}
+.searchbox input{padding-left:32px !important;}
+.searchbox svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);opacity:.5;}
+
+@media(max-width:880px){
+  #sidebar{display:none;}
+  #topbar{display:flex;}
+  #content{padding:18px 16px 60px;}
+  .grid-cards{grid-template-columns:1fr 1fr;}
+  .field-row,.field-row3{grid-template-columns:1fr;}
+  table{font-size:13px;}
+  thead{display:none;}
+  tbody tr{display:block;border-bottom:8px solid var(--surface-2);}
+  tbody td{display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed var(--line);text-align:right;}
+  tbody td::before{content:attr(data-label);text-align:left;color:var(--ink-soft);font-weight:600;font-size:12px;}
+  tbody td.rowactions{justify-content:flex-end;}
+  tbody td.rowactions::before{content:none;}
+  .invoice-doc{padding:22px;}
+}
+#drawer-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:60;display:none;}
+#drawer-overlay.open{display:block;}
+#drawer{position:fixed;top:0;left:0;bottom:0;width:250px;background:var(--brand-black);z-index:70;transform:translateX(-100%);transition:transform .18s ease;padding:18px 14px;padding-top:calc(18px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;}
+#drawer.open{transform:translateX(0);}
+
+#print-area{position:fixed;top:-99999px;left:-99999px;width:0;height:0;overflow:hidden;}
+@media print{
+  body *{visibility:hidden;}
+  #print-area, #print-area *{visibility:visible;}
+  #print-area{position:absolute;top:0;left:0;width:100%;height:auto;overflow:visible;}
+}
+#loginGate{position:fixed;inset:0;z-index:99999;background:var(--brand-black);display:flex;align-items:center;justify-content:center;padding:24px;}
+#loginGate.hidden{display:none;}
+#loginGateBox{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow);padding:32px 28px;max-width:340px;width:100%;text-align:center;}
+#loginGateBox img{width:110px;margin-bottom:18px;}
+#loginGateBox h2{font-family:'Space Grotesk',sans-serif;font-size:17px;margin:0 0 16px;color:var(--ink);}
+#loginGateBox input{width:100%;box-sizing:border-box;padding:11px 12px;border:1px solid var(--line);border-radius:var(--radius-sm);font-size:15px;margin-bottom:12px;background:var(--surface);color:var(--ink);}
+#loginGateBox button{width:100%;padding:11px 12px;border:none;border-radius:var(--radius-sm);background:var(--brand-blue-deep);color:#fff;font-size:15px;font-weight:600;cursor:pointer;}
+#loginGateBox button:active{opacity:0.85;}
+#loginGateError{color:var(--danger);font-size:13px;margin:-4px 0 12px;min-height:16px;}
+#appRoot{display:none;}
+#appRoot.unlocked{display:contents;}
+</style>
+</head>
+<body>
+
+<div id="loginGate">
+  <div id="loginGateBox">
+    <img id="loginGateLogo" alt="WOLF">
+    <h2>Log in</h2>
+    <input type="email" id="loginGateEmail" placeholder="E-mailadres" autocomplete="username">
+    <input type="password" id="loginGateInput" placeholder="Wachtwoord" autocomplete="current-password">
+    <div id="loginGateError"></div>
+    <button id="loginGateBtn" type="button">Inloggen</button>
+  </div>
+</div>
+
+<div id="appRoot">
+<div id="topbar">
+  <button class="hamburger" id="hamburgerBtn" aria-label="Menu">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+  <img id="topbarLogo" alt="WOLF">
+</div>
+
+<div id="drawer-overlay"></div>
+<div id="drawer">
+  <div class="logowrap"><img id="drawerLogo" alt="WOLF" style="width:120px"></div>
+  <ul class="navlist" id="navlistMobile"></ul>
+  <button type="button" class="btn btn-sm" id="logoutBtnMobile" style="width:calc(100% - 32px);margin:12px 16px;">Uitloggen</button>
+</div>
+
+<div id="shell">
+  <div id="sidebar">
+    <div class="logowrap"><img id="sidebarLogo" alt="WOLF"></div>
+    <ul class="navlist" id="navlistDesktop"></ul>
+    <div class="sidebar-foot">
+      <strong id="sidebarCompanyName">WOLF</strong>
+      Facturatie
+      <button type="button" class="btn btn-sm" id="logoutBtnDesktop" style="width:100%;margin-top:10px;">Uitloggen</button>
+    </div>
+  </div>
+  <div id="main">
+    <div id="content"></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="modalOverlay">
+  <div class="modal" id="modalBox"></div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+<div id="print-area"></div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+const LOGO_DATA_URI = "data:image/png;base64,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";
+const LOGO_DATA_URI_PDF = "data:image/png;base64,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";
+document.getElementById('sidebarLogo').src = LOGO_DATA_URI;
+document.getElementById('drawerLogo').src = LOGO_DATA_URI;
+document.getElementById('topbarLogo').src = LOGO_DATA_URI;
+document.getElementById('topbarLogo').style.height = '20px';
+
+/* ---------------- utilities ---------------- */
+function uid(){ return 'id' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function nowIso(){ return new Date().toISOString(); }
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function addDays(dateStr, days){ const d = new Date(dateStr); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+function fmtDate(dateStr){ if(!dateStr) return '—'; const d = new Date(dateStr+'T00:00:00'); if(isNaN(d)) return dateStr; return d.toLocaleDateString('nl-NL',{day:'2-digit',month:'2-digit',year:'numeric'}); }
+function fmtMoney(n){ n = Number(n)||0; return new Intl.NumberFormat('nl-NL',{style:'currency',currency:'EUR'}).format(n); }
+function fmtNum(n,dec){ return new Intl.NumberFormat('nl-NL',{minimumFractionDigits:dec||0,maximumFractionDigits:dec||2}).format(Number(n)||0); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function byId(arr,id){ return (arr||[]).find(x=>x.id===id); }
+function showToast(msg){
+  const wrap = document.getElementById('toastWrap');
+  const t = document.createElement('div');
+  t.className='toast'; t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity .3s'; setTimeout(()=>t.remove(),300); }, 2600);
+}
+window.addEventListener('unhandledrejection', (event)=>{
+  const msg = (event.reason && event.reason.message) ? event.reason.message : String(event.reason||'onbekende fout');
+  showToast('Opslaan mislukt: ' + msg + ' — probeer het opnieuw.');
+  console.error('Unhandled error in WOLF app:', event.reason);
+});
+
+/* ---------------- backend (Firebase Firestore, with localStorage fallback) ---------------- */
+const LS_PREFIX = 'wolf_fact_v1_';
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCQcvVM0dgdhf1m6aLfX6RB85jUuyfyBbU",
+  authDomain: "wolf-facturatie-30daf.firebaseapp.com",
+  projectId: "wolf-facturatie-30daf",
+  storageBucket: "wolf-facturatie-30daf.firebasestorage.app",
+  messagingSenderId: "1061799867910",
+  appId: "1:1061799867910:web:a10c0ef304c063278af587"
+};
+let db = null;
+let useDb = false;
+let fbAuth = null;
+
+function initFirebase(){
+  try{
+    if(!firebase.apps.length){ firebase.initializeApp(FIREBASE_CONFIG); }
+    fbAuth = firebase.auth();
+    db = firebase.firestore();
+    useDb = true;
+  }catch(e){
+    console.error('Firebase init failed:', e);
+    db = null; useDb = false;
+  }
+}
+
+async function initBackend(){
+  if(!db){ initFirebase(); }
+}
+
+function lsGetAll(name){ try{ return JSON.parse(localStorage.getItem(LS_PREFIX+name)||'[]'); }catch(e){ return []; } }
+function lsSetAll(name, arr){ try{ localStorage.setItem(LS_PREFIX+name, JSON.stringify(arr)); }catch(e){} }
+function lsGetDoc(key){ try{ return JSON.parse(localStorage.getItem(LS_PREFIX+key)||'null'); }catch(e){ return null; } }
+function lsSetDoc(key, obj){ try{ localStorage.setItem(LS_PREFIX+key, JSON.stringify(obj)); }catch(e){} }
+
+function withTimeout(promise, ms){
+  return Promise.race([
+    promise,
+    new Promise((_, reject)=> setTimeout(()=> reject(new Error('timeout')), ms))
+  ]);
+}
+async function getCompany(){
+  if(useDb){
+    try{ const snap = await withTimeout(db.doc('settings/company').get(), 8000); return snap.exists ? Object.assign({}, snap.data()) : null; }
+    catch(e){ console.error('getCompany failed:', e); return lsGetDoc('company'); }
+  }
+  return lsGetDoc('company');
+}
+async function saveCompanyFull(data){
+  if(useDb){ try{ await db.doc('settings/company').set(data); return; }catch(e){} }
+  lsSetDoc('company', data);
+}
+async function updateCompany(patch){
+  if(useDb){
+    try{ await db.doc('settings/company').update(patch); return; }
+    catch(e){ /* fall through to local merge */ }
+  }
+  const cur = lsGetDoc('company') || {};
+  lsSetDoc('company', Object.assign({}, cur, patch));
+}
+
+async function listCollection(name){
+  if(useDb){
+    try{
+      const snap = await withTimeout(db.collection(name).get(), 8000);
+      return snap.docs.map(d=>Object.assign({id:d.id}, d.data()));
+    }catch(e){ console.error('listCollection('+name+') failed:', e); return lsGetAll(name); }
+  }
+  return lsGetAll(name);
+}
+async function addToCollection(name, data){
+  const id = data.id || uid();
+  const withId = Object.assign({}, data, {id});
+  if(useDb){
+    await db.collection(name).doc(id).set(withId);
+    return withId;
+  }
+  const arr = lsGetAll(name); arr.push(withId); lsSetAll(name, arr);
+  return withId;
+}
+async function updateInCollection(name, id, patch){
+  if(useDb){
+    await db.collection(name).doc(id).update(patch);
+    return;
+  }
+  const arr = lsGetAll(name);
+  const i = arr.findIndex(x=>x.id===id);
+  if(i>-1){ arr[i] = Object.assign({}, arr[i], patch); lsSetAll(name, arr); }
+}
+async function deleteFromCollection(name, id){
+  if(useDb){
+    await db.collection(name).doc(id).delete();
+    return;
+  }
+  let arr = lsGetAll(name);
+  arr = arr.filter(x=>x.id!==id);
+  lsSetAll(name, arr);
+}
+
+/* ---------------- state ---------------- */
+const state = {
+  company: null,
+  customers: [],
+  projects: [],
+  hours: [],
+  costs: [],
+  kms: [],
+  invoices: [],
+  releasedNumbers: [],
+  view: 'dashboard',
+  ready: false,
+  storageWarning: false,
+};
+
+function defaultCompany(){
+  return {
+    name: 'WOLF',
+    contactName: '',
+    address: '', postcode: '', city: '',
+    kvk: '', btwNummer: '', iban: '', ibanName: '',
+    email: '', phone: '', website: '',
+    invoicePrefix: 'WOLF',
+    nextNumber: 1,
+    defaultVat: 21,
+    kmRate: 0.25,
+    paymentTermDays: 14,
+    footerNote: 'Gelieve het factuurbedrag binnen de betaaltermijn over te maken onder vermelding van het factuurnummer.',
+    createdAt: nowIso()
+  };
+}
+
+async function loadAll(){
+  const [company, customers, projects, hours, costs, kms, invoices, releasedNumbers] = await Promise.all([
+    getCompany(), listCollection('customers'), listCollection('projects'), listCollection('hours'), listCollection('costs'), listCollection('kms'), listCollection('invoices'), listCollection('releasedNumbers')
+  ]);
+  if(!company){
+    state.company = defaultCompany();
+    await saveCompanyFull(state.company);
+  } else {
+    state.company = company;
+  }
+  state.customers = customers.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  state.projects = projects.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  state.hours = hours.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  state.costs = costs.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  state.kms = kms.sort((a,b)=> (b.date||'').localeCompare(a.date||''));
+  state.invoices = invoices.sort((a,b)=> (b.date||'').localeCompare(a.date||'') || (b.sequenceNumber||0)-(a.sequenceNumber||0));
+  state.releasedNumbers = releasedNumbers;
+  state.ready = true;
+}
+
+/* ---------------- derived helpers ---------------- */
+function customerName(id){ const c = byId(state.customers, id); return c ? c.name : '—'; }
+function projectName(id){ const p = byId(state.projects, id); return p ? p.name : '—'; }
+function unbilledHoursForProject(projectId){ return state.hours.filter(h=>h.projectId===projectId && !h.billed); }
+function unbilledCostsForProject(projectId){ return state.costs.filter(c=>c.projectId===projectId && !c.billed); }
+function unbilledKmsForProject(projectId){ return state.kms.filter(k=>k.projectId===projectId && !k.billed); }
+function unbilledHoursForCustomer(customerId){ const ids = state.projects.filter(p=>p.customerId===customerId).map(p=>p.id); return state.hours.filter(h=>ids.includes(h.projectId) && !h.billed); }
+function unbilledCostsForCustomer(customerId){ const ids = state.projects.filter(p=>p.customerId===customerId).map(p=>p.id); return state.costs.filter(c=>ids.includes(c.projectId) && !c.billed); }
+function unbilledKmsForCustomer(customerId){ const ids = state.projects.filter(p=>p.customerId===customerId).map(p=>p.id); return state.kms.filter(k=>ids.includes(k.projectId) && !k.billed); }
+function kmAmount(k){ return k.useFixedAmount ? Number(k.fixedAmount||0) : Number(k.km||0) * Number(k.rate||0); }
+
+function invoiceDisplayStatus(inv){
+  if(inv.isCredit) return 'credit';
+  if(inv.status==='betaald') return 'betaald';
+  if(inv.status==='verzonden'){
+    if(inv.dueDate && inv.dueDate < todayStr()) return 'late';
+    return 'verzonden';
+  }
+  return 'concept';
+}
+function statusLabel(s){
+  return {concept:'Concept', verzonden:'Verzonden', late:'Te laat', betaald:'Betaald', credit:'Creditfactuur'}[s] || s;
+}
+function invoiceTotal(inv){ return (inv.lines||[]).reduce((s,l)=> s + lineTotal(l), 0); }
+function lineTotal(l){ return (Number(l.quantity)||0) * (Number(l.price)||0); }
+function invoiceVatBreakdown(inv){
+  const map = {};
+  (inv.lines||[]).forEach(l=>{
+    const rate = Number(l.vat)||0;
+    const amt = lineTotal(l) * rate/100;
+    map[rate] = (map[rate]||0) + amt;
+  });
+  return map;
+}
+function invoiceVatTotal(inv){ return Object.values(invoiceVatBreakdown(inv)).reduce((a,b)=>a+b,0); }
+function invoiceGrandTotal(inv){ return invoiceTotal(inv) + invoiceVatTotal(inv); }
+
+/* ---------------- nav ---------------- */
+const NAV = [
+  {id:'dashboard', label:'Dashboard', icon:'grid'},
+  {id:'klanten', label:'Klanten', icon:'users'},
+  {id:'projecten', label:'Projecten', icon:'folder'},
+  {id:'uren', label:'Uren & kosten', icon:'clock'},
+  {id:'facturen', label:'Facturen', icon:'file'},
+  {id:'instellingen', label:'Instellingen', icon:'settings'},
+];
+const ICONS = {
+  grid:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="3" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.8"/><rect x="13" y="13" width="8" height="8" rx="1.5" stroke="currentColor" stroke-width="1.8"/></svg>',
+  file:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M6 2.5h8l5 5V21a1 1 0 01-1 1H6a1 1 0 01-1-1V3.5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M9 12h6M9 16h6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  users:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="8" r="3.2" stroke="currentColor" stroke-width="1.8"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M16 8.2a3.2 3.2 0 010 6.3M19 20a5.5 5.5 0 00-3.5-5.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  folder:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><path d="M3 6.5A1.5 1.5 0 014.5 5h4.4a1.5 1.5 0 011.1.5l1.4 1.5h8.1a1.5 1.5 0 011.5 1.5v9.5a1.5 1.5 0 01-1.5 1.5h-15A1.5 1.5 0 013 18V6.5z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>',
+  clock:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3.5 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  settings:'<svg width="17" height="17" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13.5a1.7 1.7 0 000-3l1.1-1.6-1.7-1.7-1.7 1a1.7 1.7 0 00-3-1.2L13.7 3h-2.4l-.4 1.9a1.7 1.7 0 00-3 1.3l-1.7-1L4.5 7l1 1.7a1.7 1.7 0 00-1.2 3L3 12.3v2.4l1.9.4a1.7 1.7 0 001.3 3l-1 1.7 1.7 1.7 1.7-1a1.7 1.7 0 003 1.2l.4 1.9h2.4l.4-1.9a1.7 1.7 0 003-1.3l1.7 1 1.7-1.7-1-1.7c.2-.3.4-.7.5-1.1z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+  plus:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  edit:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 20l.9-3.6L16.6 4.7a1.5 1.5 0 012.1 0l1.6 1.6a1.5 1.5 0 010 2.1L8.6 20l-4.6.9.9-3.6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  trash:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-9 0v13a1 1 0 001 1h8a1 1 0 001-1V7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  eye:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.6"/></svg>',
+  pdf:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M6 2.5h8l5 5V21a1 1 0 01-1 1H6a1 1 0 01-1-1V3.5a1 1 0 011-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 15.5h1.3a1.3 1.3 0 000-2.6H8v4.6M13 17.5v-4.6h1.2c1 0 1.7.8 1.7 2.3s-.7 2.3-1.7 2.3H13zM19 13v4.5M19 15h1.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  mail:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="2.5" y="5" width="19" height="14" rx="2" stroke="currentColor" stroke-width="1.6"/><path d="M3.5 6.5L12 13l8.5-6.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  check:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 12.5l5 5L20 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  minus:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+  close:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M5 5l14 14M19 5L5 19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  search:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="1.8"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  reverse:'<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 12a8 8 0 0114-5.3M20 12a8 8 0 01-14 5.3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><path d="M18 3v4h-4M6 21v-4h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+};
+
+function renderNav(){
+  [['navlistDesktop',false],['navlistMobile',true]].forEach(([elId,isMobile])=>{
+    const el = document.getElementById(elId);
+    el.innerHTML = NAV.map(n=>`<li><button data-view="${n.id}" class="${state.view===n.id?'active':''}">${ICONS[n.icon]}<span>${n.label}</span></button></li>`).join('');
+    el.querySelectorAll('button').forEach(b=>{
+      b.addEventListener('click', ()=>{ setView(b.dataset.view); if(isMobile) closeDrawer(); });
+    });
+  });
+  document.getElementById('sidebarCompanyName').textContent = (state.company && state.company.name) || 'WOLF';
+}
+function openDrawer(){ document.getElementById('drawer').classList.add('open'); document.getElementById('drawer-overlay').classList.add('open'); }
+function closeDrawer(){ document.getElementById('drawer').classList.remove('open'); document.getElementById('drawer-overlay').classList.remove('open'); }
+document.getElementById('hamburgerBtn').addEventListener('click', openDrawer);
+document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
+
+function setView(v){ state.view = v; renderNav(); render(); window.scrollTo(0,0); }
+
+/* ---------------- modal helpers ---------------- */
+function openModal(html, wide){
+  document.getElementById('modalBox').className = 'modal' + (wide?' wide':'');
+  document.getElementById('modalBox').innerHTML = html;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+function closeModal(){
+  document.getElementById('modalOverlay').classList.add('hidden');
+  document.getElementById('modalBox').innerHTML = '';
+}
+document.getElementById('modalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='modalOverlay') closeModal(); });
+
+function confirmDialog(title, body, okLabel, onOk){
+  openModal(`
+    <div class="modal-head"><h2>${esc(title)}</h2><button class="iconbtn" data-close>${ICONS.close}</button></div>
+    <div class="modal-body"><p style="margin:0;color:var(--ink-soft)">${body}</p></div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Annuleren</button>
+      <button class="btn btn-danger" id="confirmOkBtn">${esc(okLabel)}</button>
+    </div>
+  `);
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+  document.getElementById('confirmOkBtn').addEventListener('click', async ()=>{ await onOk(); closeModal(); });
+}
+
+/* ================= DASHBOARD ================= */
+function renderDashboard(){
+  const openInvoices = state.invoices.filter(i=>!i.isCredit && (i.status==='verzonden'));
+  const openAmount = openInvoices.reduce((s,i)=>s+invoiceGrandTotal(i),0);
+  const lateCount = openInvoices.filter(i=>i.dueDate && i.dueDate<todayStr()).length;
+  const conceptCount = state.invoices.filter(i=>i.status==='concept').length;
+  const thisMonth = todayStr().slice(0,7);
+  const monthTotal = state.invoices.filter(i=>i.status!=='concept' && (i.date||'').slice(0,7)===thisMonth)
+    .reduce((s,i)=> s + (i.isCredit? -invoiceGrandTotal(i) : invoiceGrandTotal(i)), 0);
+  const recent = state.invoices.slice(0,6);
+
+  const currentYear = todayStr().slice(0,4);
+  const finalizedThisYear = state.invoices.filter(i=>i.status!=='concept' && (i.date||'').slice(0,4)===currentYear);
+  const linesThisYear = [];
+  finalizedThisYear.forEach(inv=>{
+    const sign = inv.isCredit ? -1 : 1;
+    (inv.lines||[]).forEach(l=> linesThisYear.push({category:l.category||'materiaal', total: sign*lineTotal(l)}));
+  });
+  const sumCat = cat => linesThisYear.filter(l=>l.category===cat).reduce((s,l)=>s+l.total,0);
+  const omzetWerk = sumCat('uren');
+  const materiaalkosten = sumCat('materiaal');
+  const kmVergoeding = sumCat('km');
+  const totaalGefactureerd = omzetWerk + materiaalkosten + kmVergoeding;
+  const omzetPerKlantMap = {};
+  finalizedThisYear.forEach(inv=>{
+    const naam = customerName(inv.customerId);
+    const bedrag = inv.isCredit ? -invoiceTotal(inv) : invoiceTotal(inv);
+    omzetPerKlantMap[naam] = (omzetPerKlantMap[naam]||0) + bedrag;
+  });
+  const omzetPerKlant = Object.entries(omzetPerKlantMap).map(([naam,bedrag])=>({naam,bedrag})).sort((a,b)=>b.bedrag-a.bedrag);
+
+  return `
+    <div class="pagehead">
+      <div><h1>Dashboard</h1><p>Overzicht van je facturatie${state.company && state.company.name ? ' — '+esc(state.company.name):''}.</p></div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn" data-action="new-customer">${ICONS.plus} Nieuwe klant</button>
+        <button class="btn btn-primary" data-action="new-invoice">${ICONS.plus} Nieuwe factuur</button>
+      </div>
+    </div>
+    ${state.storageWarning ? `<div class="banner">Geen cloudopslag beschikbaar in deze weergave — gegevens worden lokaal in deze browser bewaard en zijn niet zichtbaar op andere apparaten.</div>` : ''}
+    ${(!state.company.address && !state.company.kvk) ? `<div class="banner">Vul je bedrijfsgegevens aan zodat ze op je facturen verschijnen. <button class="btn btn-sm" data-view="instellingen">Naar instellingen</button></div>` : ''}
+    <div class="grid-cards">
+      <div class="stat-card accent">
+        <div class="label">Openstaand</div>
+        <div class="value">${fmtMoney(openAmount)}</div>
+        <div class="sub">${openInvoices.length} onbetaalde ${openInvoices.length===1?'factuur':'facturen'}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Te laat</div>
+        <div class="value" style="color:${lateCount? 'var(--danger)':'var(--ink)'}">${lateCount}</div>
+        <div class="sub">verlopen betaaltermijn</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Concepten</div>
+        <div class="value">${conceptCount}</div>
+        <div class="sub">nog niet verzonden</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Deze maand</div>
+        <div class="value">${fmtMoney(monthTotal)}</div>
+        <div class="sub">gefactureerd (incl. credits)</div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Recente facturen</h3><button class="btn btn-sm btn-ghost" data-view="facturen">Alle facturen</button></div>
+      ${recent.length===0 ? emptyState('Nog geen facturen','Maak je eerste factuur aan om ‘m hier te zien.') : `
+      <table>
+        <thead><tr><th>Nummer</th><th>Klant</th><th>Datum</th><th class="num">Bedrag</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${recent.map(inv=>invoiceRow(inv)).join('')}
+        </tbody>
+      </table>`}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Uitsplitsing gefactureerd bedrag (${currentYear}, excl. btw)</h3></div>
+      <div style="padding:6px 22px 18px;">
+        <p class="hint" style="margin-top:0;">Materiaal en kilometers tellen niet mee als echte omzet uit werk — dat zijn doorbelaste kosten.</p>
+        <table>
+          <tbody>
+            <tr><td>Omzet werk (uren + vaste bedragen)</td><td class="num">${fmtMoney(omzetWerk)}</td></tr>
+            <tr><td>Materiaalkosten</td><td class="num">${fmtMoney(materiaalkosten)}</td></tr>
+            <tr><td>Kilometervergoeding</td><td class="num">${fmtMoney(kmVergoeding)}</td></tr>
+            <tr><td><strong>Totaal</strong></td><td class="num"><strong>${fmtMoney(totaalGefactureerd)}</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Omzet per klant (${currentYear}, excl. btw)</h3></div>
+      ${omzetPerKlant.length===0 ? emptyState('Nog geen facturen dit jaar','Zodra je facturen verstuurt of definitief maakt, zie je hier de verdeling per klant.') : `
+      <table>
+        <thead><tr><th>Klant</th><th class="num">Bedrag</th></tr></thead>
+        <tbody>
+          ${omzetPerKlant.map(o=>`<tr><td>${esc(o.naam)}</td><td class="num">${fmtMoney(o.bedrag)}</td></tr>`).join('')}
+          <tr><td><strong>Totaal</strong></td><td class="num"><strong>${fmtMoney(omzetPerKlant.reduce((s,o)=>s+o.bedrag,0))}</strong></td></tr>
+        </tbody>
+      </table>`}
+    </div>
+  `;
+}
+function emptyState(big, small){
+  return `<div class="emptystate"><div class="big">${esc(big)}</div><div>${esc(small)}</div></div>`;
+}
+function statusTagHtml(inv){
+  const s = invoiceDisplayStatus(inv);
+  return `<span class="tag tag-${s==='late'?'late':s}">${statusLabel(s)}</span>`;
+}
+function displayInvoiceNumber(inv){ return inv.number || 'Concept'; }
+function invoiceRow(inv){
+  const total = inv.isCredit ? -invoiceGrandTotal(inv) : invoiceGrandTotal(inv);
+  return `<tr data-invoice-row="${inv.id}">
+    <td data-label="Nummer"><strong style="color:${inv.isCredit?'var(--danger)':'var(--brand-blue-deep)'}">${esc(displayInvoiceNumber(inv))}</strong></td>
+    <td data-label="Klant">${esc(customerName(inv.customerId))}</td>
+    <td data-label="Datum">${fmtDate(inv.date)}</td>
+    <td data-label="Bedrag" class="num">${fmtMoney(total)}</td>
+    <td data-label="Status">${statusTagHtml(inv)}</td>
+    <td class="rowactions"><button class="btn btn-sm btn-ghost" data-action="view-invoice" data-id="${inv.id}">${ICONS.eye} Bekijk</button></td>
+  </tr>`;
+}
+
+/* ================= KLANTEN ================= */
+function renderKlanten(){
+  const list = state.customers;
+  return `
+    <div class="pagehead">
+      <div><h1>Klanten</h1><p>${list.length} ${list.length===1?'klant':'klanten'} in je administratie.</p></div>
+      <button class="btn btn-primary" data-action="new-customer">${ICONS.plus} Nieuwe klant</button>
+    </div>
+    <div class="panel">
+      ${list.length===0 ? emptyState('Nog geen klanten','Voeg je eerste klant toe om te starten met factureren.') : `
+      <table>
+        <thead><tr><th>Naam</th><th>Contactpersoon</th><th>E-mail</th><th>Plaats</th><th></th></tr></thead>
+        <tbody>
+          ${list.map(c=>`<tr>
+            <td data-label="Naam"><strong>${esc(c.name)}</strong></td>
+            <td data-label="Contactpersoon">${esc(c.contactName)||'—'}</td>
+            <td data-label="E-mail">${esc(c.email)||'—'}</td>
+            <td data-label="Plaats">${esc(c.city)||'—'}</td>
+            <td class="rowactions">
+              <button class="btn btn-sm btn-ghost" data-action="edit-customer" data-id="${c.id}">${ICONS.edit}</button>
+              <button class="btn btn-sm btn-ghost" data-action="delete-customer" data-id="${c.id}">${ICONS.trash}</button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
+}
+function customerForm(existing){
+  const c = existing || {name:'',contactName:'',email:'',phone:'',address:'',postcode:'',city:'',notes:''};
+  return `
+    <div class="modal-head"><h2>${existing?'Klant bewerken':'Nieuwe klant'}</h2><button class="iconbtn" data-close>${ICONS.close}</button></div>
+    <div class="modal-body">
+      <form id="customerForm">
+        <div class="field"><label>Bedrijfs- of klantnaam *</label><input type="text" name="name" required value="${esc(c.name)}"></div>
+        <div class="field-row">
+          <div class="field"><label>Contactpersoon</label><input type="text" name="contactName" value="${esc(c.contactName)}"></div>
+          <div class="field"><label>E-mailadres</label><input type="email" name="email" value="${esc(c.email)}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Telefoonnummer</label><input type="tel" name="phone" value="${esc(c.phone)}"></div>
+          <div class="field"><label>Postcode</label><input type="text" name="postcode" value="${esc(c.postcode)}"></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Adres</label><input type="text" name="address" value="${esc(c.address)}"></div>
+          <div class="field"><label>Plaats</label><input type="text" name="city" value="${esc(c.city)}"></div>
+        </div>
+        <div class="field"><label>Notities</label><textarea name="notes">${esc(c.notes)}</textarea></div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Annuleren</button>
+      <button class="btn btn-primary" id="saveCustomerBtn">${existing?'Opslaan':'Klant toevoegen'}</button>
+    </div>
+  `;
+}
+function openCustomerModal(existing){
+  openModal(customerForm(existing));
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+  document.getElementById('saveCustomerBtn').addEventListener('click', async ()=>{
+    const form = document.getElementById('customerForm');
+    if(!form.reportValidity()) return;
+    const data = Object.fromEntries(new FormData(form).entries());
+    if(existing){ await updateInCollection('customers', existing.id, data); Object.assign(existing,data); showToast('Klant bijgewerkt'); }
+    else { const created = await addToCollection('customers', data); state.customers.push(created); showToast('Klant toegevoegd'); }
+    state.customers.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    closeModal(); render();
+  });
+}
+
+/* ================= PROJECTEN ================= */
+function renderProjecten(){
+  const list = state.projects;
+  return `
+    <div class="pagehead">
+      <div><h1>Projecten</h1><p>${list.length} ${list.length===1?'project':'projecten'}.</p></div>
+      <button class="btn btn-primary" data-action="new-project" ${state.customers.length===0?'disabled title="Voeg eerst een klant toe"':''}>${ICONS.plus} Nieuw project</button>
+    </div>
+    ${state.customers.length===0 ? `<div class="banner">Voeg eerst een klant toe voordat je een project aanmaakt. <button class="btn btn-sm" data-view="klanten">Naar klanten</button></div>` : ''}
+    <div class="panel">
+      ${list.length===0 ? emptyState('Nog geen projecten','Projecten helpen je uren en facturen te groeperen per klus.') : `
+      <table>
+        <thead><tr><th>Project</th><th>Klant</th><th>Voortgang</th><th>Actief</th><th></th></tr></thead>
+        <tbody>
+          ${list.map(p=>`<tr>
+            <td data-label="Project"><strong>${esc(p.name)}</strong>${p.description?`<div class="helpline">${esc(p.description)}</div>`:''}</td>
+            <td data-label="Klant">${esc(customerName(p.customerId))}</td>
+            <td data-label="Voortgang"><span class="tag tag-concept">${esc(p.status||'Nieuw')}</span></td>
+            <td data-label="Actief"><span class="tag tag-${p.active===false?'inactief':'actief'}">${p.active===false?'Inactief':'Actief'}</span></td>
+            <td class="rowactions">
+              <button class="btn btn-sm" data-action="quick-invoice" data-id="${p.id}" title="Maak in één klik een conceptfactuur van alle openstaande uren, kosten en kilometers">Factuur maken</button>
+              <button class="btn btn-sm btn-ghost" data-action="edit-project" data-id="${p.id}">${ICONS.edit}</button>
+              <button class="btn btn-sm btn-ghost" data-action="delete-project" data-id="${p.id}">${ICONS.trash}</button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
+}
+function projectForm(existing){
+  const p = existing || {name:'',customerId:'',description:'',hourlyRate:'',active:true,status:'Nieuw'};
+  return `
+    <div class="modal-head"><h2>${existing?'Project bewerken':'Nieuw project'}</h2><button class="iconbtn" data-close>${ICONS.close}</button></div>
+    <div class="modal-body">
+      <form id="projectForm">
+        <div class="field"><label>Projectnaam *</label><input type="text" name="name" required value="${esc(p.name)}"></div>
+        <div class="field"><label>Klant *</label>
+          <select name="customerId" required>
+            <option value="">Kies een klant…</option>
+            ${state.customers.map(c=>`<option value="${c.id}" ${p.customerId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Voortgang</label>
+          <select name="status">
+            ${['Nieuw','Lopend','Afgerond'].map(s=>`<option value="${s}" ${(p.status||'Nieuw')===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Actief/inactief</label>
+          <select name="active">
+            <option value="true" ${p.active!==false?'selected':''}>Actief</option>
+            <option value="false" ${p.active===false?'selected':''}>Inactief</option>
+          </select>
+        </div>
+        <div class="field"><label>Omschrijving</label><textarea name="description">${esc(p.description)}</textarea></div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Annuleren</button>
+      <button class="btn btn-primary" id="saveProjectBtn">${existing?'Opslaan':'Project toevoegen'}</button>
+    </div>
+  `;
+}
+function openProjectModal(existing){
+  openModal(projectForm(existing));
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+  document.getElementById('saveProjectBtn').addEventListener('click', async ()=>{
+    const form = document.getElementById('projectForm');
+    if(!form.reportValidity()) return;
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.active = data.active === 'true';
+    if(existing){ await updateInCollection('projects', existing.id, data); Object.assign(existing,data); showToast('Project bijgewerkt'); }
+    else { const created = await addToCollection('projects', data); state.projects.push(created); showToast('Project toegevoegd'); }
+    state.projects.sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    closeModal(); render();
+  });
+}
+
+/* ================= UREN ================= */
+let urenProjectFilter = '';
+let urenShowBilled = false;
+function renderUren(){
+  const projFilter = urenProjectFilter;
+  const showBilled = urenShowBilled;
+  const matches = item => (!projFilter || item.projectId===projFilter) && (showBilled || !item.billed);
+  const list = state.hours.filter(matches);
+  const costList = state.costs.filter(matches);
+  const kmList = state.kms.filter(matches);
+  const totalHidden = (state.hours.length-list.length) + (state.costs.length-costList.length) + (state.kms.length-kmList.length);
+  return `
+    <div class="pagehead">
+      <div><h1>Uren &amp; kosten</h1><p>Registreer gewerkte uren, overige kosten en kilometers per project, klaar om te factureren.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" data-action="new-hour" ${state.projects.length===0?'disabled title="Voeg eerst een project toe"':''}>${ICONS.plus} Uren registreren</button>
+        <button class="btn" data-action="new-cost" ${state.projects.length===0?'disabled title="Voeg eerst een project toe"':''}>${ICONS.plus} Kosten registreren</button>
+        <button class="btn" data-action="new-km" ${state.projects.length===0?'disabled title="Voeg eerst een project toe"':''}>${ICONS.plus} Kilometers registreren</button>
+      </div>
+    </div>
+    ${state.projects.length===0 ? `<div class="banner">Voeg eerst een project toe voordat je uren, kosten of kilometers registreert. <button class="btn btn-sm" data-view="projecten">Naar projecten</button></div>` : ''}
+    <div class="panel">
+      <div style="padding:14px 22px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;">
+        <div class="field" style="margin:0;min-width:220px;"><label>Filter op project</label>
+          <select id="urenProjectFilterSelect">
+            <option value="">Alle projecten</option>
+            ${state.projects.map(p=>`<option value="${p.id}" ${projFilter===p.id?'selected':''}>${esc(p.name)} — ${esc(customerName(p.customerId))}</option>`).join('')}
+          </select>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" id="urenShowBilledCheck" ${showBilled?'checked':''}> <span>Ook gefactureerde regels tonen${totalHidden?` (nu ${totalHidden} verborgen)`:''}</span></label>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Uren</h3></div>
+      ${list.length===0 ? emptyState(state.hours.length?'Geen uren binnen dit filter':'Nog geen uren geregistreerd', state.hours.length?'Pas het filter hierboven aan om meer te zien.':'Elke dag apart geregistreerd — zo kun je later per dag of samen factureren.') : `
+      <table>
+        <thead><tr><th>Datum</th><th>Project</th><th>Klant</th><th class="num">Uren</th><th>Omschrijving</th><th>Btw</th><th class="num">Bedrag</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${list.map(h=>{ const p = byId(state.projects,h.projectId); const rate = h.rate ? Number(h.rate) : (p&&p.hourlyRate?p.hourlyRate:0); const amt = h.useFixedAmount?Number(h.fixedAmount||0):Number(h.hours||0)*rate; return `<tr>
+            <td data-label="Datum">${fmtDate(h.date)}</td>
+            <td data-label="Project">${esc(p?p.name:'—')}</td>
+            <td data-label="Klant">${esc(p?customerName(p.customerId):'—')}</td>
+            <td data-label="Uren" class="num">${h.useFixedAmount?'—':fmtNum(h.hours,2)}</td>
+            <td data-label="Omschrijving">${esc(h.description)||'—'}${h.useFixedAmount?' <span class="tag tag-concept">Vast bedrag</span>':''}</td>
+            <td data-label="Btw">${esc(h.vat!=null?h.vat:21)}%</td>
+            <td data-label="Bedrag" class="num">${fmtMoney(amt)}</td>
+            <td data-label="Status">${h.billed?'<span class="tag tag-betaald">Gefactureerd</span>':'<span class="tag tag-concept">Open</span>'}</td>
+            <td class="rowactions">
+              ${!h.billed?`<button class="btn btn-sm btn-ghost" data-action="edit-hour" data-id="${h.id}">${ICONS.edit}</button>
+              <button class="btn btn-sm btn-ghost" data-action="delete-hour" data-id="${h.id}">${ICONS.trash}</button>`:''}
+            </td>
+          </tr>`;}).join('')}
+        </tbody>
+      </table>`}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Overige kosten</h3></div>
+      ${costList.length===0 ? emptyState(state.costs.length?'Geen kosten binnen dit filter':'Nog geen kosten geregistreerd', state.costs.length?'Pas het filter hierboven aan om meer te zien.':'Bijvoorbeeld reiskosten, materiaal of parkeerkosten — apart van je uren, klaar om mee te factureren.') : `
+      <table>
+        <thead><tr><th>Datum</th><th>Project</th><th>Klant</th><th>Omschrijving</th><th>Btw</th><th class="num">Bedrag (excl. btw)</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${costList.map(c=>{ const p = byId(state.projects,c.projectId); return `<tr>
+            <td data-label="Datum">${fmtDate(c.date)}</td>
+            <td data-label="Project">${esc(p?p.name:'—')}</td>
+            <td data-label="Klant">${esc(p?customerName(p.customerId):'—')}</td>
+            <td data-label="Omschrijving">${esc(c.description)||'—'}</td>
+            <td data-label="Btw">${esc(c.vat!=null?c.vat:21)}%</td>
+            <td data-label="Bedrag" class="num">${fmtMoney(c.amount)}</td>
+            <td data-label="Status">${c.billed?'<span class="tag tag-betaald">Gefactureerd</span>':'<span class="tag tag-concept">Open</span>'}</td>
+            <td class="rowactions">
+              ${!c.billed?`<button class="btn btn-sm btn-ghost" data-action="edit-cost" data-id="${c.id}">${ICONS.edit}</button>
+              <button class="btn btn-sm btn-ghost" data-action="delete-cost" data-id="${c.id}">${ICONS.trash}</button>`:''}
+            </td>
+          </tr>`;}).join('')}
+        </tbody>
+      </table>`}
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Kilometers</h3></div>
+      ${kmList.length===0 ? emptyState(state.kms.length?'Geen kilometers binnen dit filter':'Nog geen kilometers geregistreerd', state.kms.length?'Pas het filter hierboven aan om meer te zien.':'Reiskilometers naar een klant of project — met een vast tarief per kilometer of een vast bedrag.') : `
+      <table>
+        <thead><tr><th>Datum</th><th>Project</th><th>Klant</th><th>Omschrijving</th><th class="num">Km</th><th>Btw</th><th class="num">Bedrag</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${kmList.map(k=>{ const p = byId(state.projects,k.projectId); return `<tr>
+            <td data-label="Datum">${fmtDate(k.date)}</td>
+            <td data-label="Project">${esc(p?p.name:'—')}</td>
+            <td data-label="Klant">${esc(p?customerName(p.customerId):'—')}</td>
+            <td data-label="Omschrijving">${esc(k.description)||'—'}${k.useFixedAmount?' <span class="tag tag-concept">Vast bedrag</span>':''}</td>
+            <td data-label="Km" class="num">${k.useFixedAmount?'—':fmtNum(k.km,0)}</td>
+            <td data-label="Btw">${esc(k.vat!=null?k.vat:21)}%</td>
+            <td data-label="Bedrag" class="num">${fmtMoney(kmAmount(k))}</td>
+            <td data-label="Status">${k.billed?'<span class="tag tag-betaald">Gefactureerd</span>':'<span class="tag tag-concept">Open</span>'}</td>
+            <td class="rowactions">
+              ${!k.billed?`<button class="btn btn-sm btn-ghost" data-action="edit-km" data-id="${k.id}">${ICONS.edit}</button>
+              <button class="btn btn-sm btn-ghost" data-action="delete-km" data-id="${k.id}">${ICONS.trash}</button>`:''}
+            </td>
+          </tr>`;}).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
+}
+function hourForm(existing){
+  const h = existing || {projectId:'', date: todayStr(), hours:'', description:'', vat: (state.company.defaultVat!=null?state.company.defaultVat:21), useFixedAmount:false, fixedAmount:'', rate:''};
+  return `
+    <div class="modal-head"><h2>${existing?'Uren bewerken':'Uren registreren'}</h2><button class="iconbtn" data-close>${ICONS.close}</button></div>
+    <div class="modal-body">
+      <form id="hourForm">
+        <div class="field"><label>Project *</label>
+          <select name="projectId" required>
+            <option value="">Kies een project…</option>
+            ${state.projects.map(p=>`<option value="${p.id}" ${h.projectId===p.id?'selected':''}>${esc(p.name)} — ${esc(customerName(p.customerId))}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Datum *</label><input type="date" name="date" required value="${esc(h.date)}"></div>
+          <div class="field"><label>Btw-percentage</label>
+            <select name="vat">
+              ${[21,9,0].map(r=>`<option value="${r}" ${Number(h.vat)===r?'selected':''}>${r}%</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:4px 0 10px;"><input type="checkbox" name="useFixedAmount" id="hourFixedToggle" ${h.useFixedAmount?'checked':''}> <span>Vast bedrag gebruiken (i.p.v. uren × tarief)</span></label>
+        <div class="field-row" id="hourHoursField" style="${h.useFixedAmount?'display:none;':''}">
+          <div class="field"><label>Aantal uren *</label><input type="number" step="0.25" min="0" name="hours" value="${esc(h.hours)}"></div>
+          <div class="field"><label>Uurtarief (€) *</label><input type="number" step="0.01" min="0" name="rate" value="${esc(h.rate)}"></div>
+        </div>
+        <div class="field" id="hourFixedField" style="${h.useFixedAmount?'':'display:none;'}"><label>Vast bedrag excl. btw *</label><input type="number" step="0.01" min="0" name="fixedAmount" value="${esc(h.fixedAmount)}"></div>
+        <div class="field"><label>Omschrijving</label><textarea name="description" placeholder="Wat heb je gedaan?">${esc(h.description)}</textarea></div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Annuleren</button>
+      <button class="btn btn-primary" id="saveHourBtn">${existing?'Opslaan':'Toevoegen'}</button>
+    </div>
+  `;
+}
+function openHourModal(existing){
+  openModal(hourForm(existing));
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+  const toggle = document.getElementById('hourFixedToggle');
+  toggle.addEventListener('change', ()=>{
+    document.getElementById('hourHoursField').style.display = toggle.checked ? 'none':'';
+    document.getElementById('hourFixedField').style.display = toggle.checked ? '':'none';
+  });
+  document.getElementById('saveHourBtn').addEventListener('click', async ()=>{
+    const form = document.getElementById('hourForm');
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.useFixedAmount = !!data.useFixedAmount;
+    data.hours = Number(data.hours)||0;
+    data.rate = Number(data.rate)||0;
+    data.fixedAmount = Number(data.fixedAmount)||0;
+    data.vat = Number(data.vat)||0;
+    if(!data.projectId || !data.date || (data.useFixedAmount ? !data.fixedAmount : (!data.hours || !data.rate))){ showToast('Vul de verplichte velden in'); return; }
+    if(existing){ await updateInCollection('hours', existing.id, data); Object.assign(existing,data); showToast('Uren bijgewerkt'); }
+    else { data.billed=false; data.invoiceId=null; const created = await addToCollection('hours', data); state.hours.unshift(created); showToast('Uren geregistreerd'); }
+    state.hours.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    closeModal(); render();
+  });
+}
+function costForm(existing){
+  const c = existing || {projectId:'', date: todayStr(), description:'', amount:'', vat: (state.company.defaultVat!=null?state.company.defaultVat:21)};
+  return `
+    <div class="modal-head"><h2>${existing?'Kosten bewerken':'Kosten registreren'}</h2><button class="iconbtn" data-close>${ICONS.close}</button></div>
+    <div class="modal-body">
+      <form id="costForm">
+        <div class="field"><label>Project *</label>
+          <select name="projectId" required>
+            <option value="">Kies een project…</option>
+            ${state.projects.map(p=>`<option value="${p.id}" ${c.projectId===p.id?'selected':''}>${esc(p.name)} — ${esc(customerName(p.customerId))}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Datum *</label><input type="date" name="date" required value="${esc(c.date)}"></div>
+          <div class="field"><label>Bedrag excl. btw *</label><input type="number" step="0.01" min="0" name="amount" required value="${esc(c.amount)}"></div>
+        </div>
+        <div class="field"><label>Btw-percentage</label>
+          <select name="vat">
+            ${[21,9,0].map(r=>`<option value="${r}" ${Number(c.vat)===r?'selected':''}>${r}%</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label>Omschrijving *</label><textarea name="description" required placeholder="Bijv. reiskosten, materiaal, parkeerkosten">${esc(c.description)}</textarea></div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Annuleren</button>
+      <button class="btn btn-primary" id="saveCostBtn">${existing?'Opslaan':'Toevoegen'}</button>
+    </div>
+  `;
+}
+function openCostModal(existing){
+  openModal(costForm(existing));
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+  document.getElementById('saveCostBtn').addEventListener('click', async ()=>{
+    const form = document.getElementById('costForm');
+    if(!form.reportValidity()) return;
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.amount = Number(data.amount);
+    data.vat = Number(data.vat)||0;
+    if(existing){ await updateInCollection('costs', existing.id, data); Object.assign(existing,data); showToast('Kosten bijgewerkt'); }
+    else { data.billed=false; data.invoiceId=null; const created = await addToCollection('costs', data); state.costs.unshift(created); showToast('Kosten geregistreerd'); }
+    state.costs.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    closeModal(); render();
+  });
+}
+function kmForm(existing){
+  const k = existing || {projectId:'', date: todayStr(), km:'', rate: state.company.kmRate||0.25, useFixedAmount:false, fixedAmount:'', description:'', vat: (state.company.defaultVat!=null?state.company.defaultVat:21)};
+  return `
+    <div class="modal-head"><h2>${existing?'Kilometers bewerken':'Kilometers registreren'}</h2><button class="iconbtn" data-close>${ICONS.close}</button></div>
+    <div class="modal-body">
+      <form id="kmForm">
+        <div class="field"><label>Project *</label>
+          <select name="projectId" required>
+            <option value="">Kies een project…</option>
+            ${state.projects.map(p=>`<option value="${p.id}" ${k.projectId===p.id?'selected':''}>${esc(p.name)} — ${esc(customerName(p.customerId))}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Datum *</label><input type="date" name="date" required value="${esc(k.date)}"></div>
+          <div class="field"><label>Btw-percentage</label>
+            <select name="vat">
+              ${[21,9,0].map(r=>`<option value="${r}" ${Number(k.vat)===r?'selected':''}>${r}%</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:4px 0 10px;"><input type="checkbox" name="useFixedAmount" id="kmFixedToggle" ${k.useFixedAmount?'checked':''}> <span>Vast bedrag gebruiken (i.p.v. km × tarief)</span></label>
+        <div class="field-row" id="kmVariableFields" style="${k.useFixedAmount?'display:none;':''}">
+          <div class="field"><label>Aantal kilometers</label><input type="number" step="1" min="0" name="km" value="${esc(k.km)}"></div>
+          <div class="field"><label>Tarief per km (€)</label><input type="number" step="0.01" min="0" name="rate" value="${esc(k.rate)}"></div>
+        </div>
+        <div class="field" id="kmFixedField" style="${k.useFixedAmount?'':'display:none;'}"><label>Vast bedrag (€)</label><input type="number" step="0.01" min="0" name="fixedAmount" value="${esc(k.fixedAmount)}"></div>
+        <div class="field"><label>Omschrijving</label><input type="text" name="description" placeholder="Bijv. rit naar klant" value="${esc(k.description)}"></div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Annuleren</button>
+      <button class="btn btn-primary" id="saveKmBtn">${existing?'Opslaan':'Toevoegen'}</button>
+    </div>
+  `;
+}
+function openKmModal(existing){
+  openModal(kmForm(existing));
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+  const toggle = document.getElementById('kmFixedToggle');
+  toggle.addEventListener('change', ()=>{
+    document.getElementById('kmVariableFields').style.display = toggle.checked ? 'none':'';
+    document.getElementById('kmFixedField').style.display = toggle.checked ? '':'none';
+  });
+  document.getElementById('saveKmBtn').addEventListener('click', async ()=>{
+    const form = document.getElementById('kmForm');
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.useFixedAmount = !!data.useFixedAmount;
+    data.km = Number(data.km)||0;
+    data.rate = Number(data.rate)||0;
+    data.fixedAmount = Number(data.fixedAmount)||0;
+    data.vat = Number(data.vat)||0;
+    if(!data.projectId || !data.date || (data.useFixedAmount ? !data.fixedAmount : !data.km)){ showToast('Vul de verplichte velden in'); return; }
+    if(existing){ await updateInCollection('kms', existing.id, data); Object.assign(existing,data); showToast('Kilometers bijgewerkt'); }
+    else { data.billed=false; data.invoiceId=null; const created = await addToCollection('kms', data); state.kms.unshift(created); showToast('Kilometers geregistreerd'); }
+    state.kms.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+    closeModal(); render();
+  });
+}
+
+function openFinalizeNumberPicker(forYear, onChosen){
+  const availableForYear = state.releasedNumbers.filter(r=>String(r.year)===String(forYear));
+  const seq = state.company.nextNumber || 1;
+  const previewNumber = `${state.company.invoicePrefix||'FACT'}-${forYear}-${String(seq).padStart(3,'0')}`;
+  openModal(`
+    <div class="modal-head"><h2>Kies een factuurnummer</h2><button class="iconbtn" data-close>${ICONS.close}</button></div>
+    <div class="modal-body">
+      <p style="margin:0 0 14px;">Je kunt het volgende nieuwe nummer gebruiken, of gericht een eerder vrijgekomen nummer hergebruiken (van een verwijderde factuur) zodat er geen gaten in de nummering vallen.</p>
+      <button type="button" class="btn btn-primary" id="pickNewNumberBtn" style="width:100%;justify-content:space-between;display:flex;margin-bottom:10px;">
+        <span>Volgend nieuw nummer</span><strong>${esc(previewNumber)}</strong>
+      </button>
+      ${availableForYear.length ? `
+      <div style="margin:14px 0 6px;font-weight:600;font-size:13px;">Vrijgekomen nummers hergebruiken</div>
+      ${availableForYear.map(r=>`<button type="button" class="btn" data-reuse="${r.id}" style="width:100%;justify-content:space-between;display:flex;margin-bottom:8px;"><span>${esc(r.number)}</span><span>↺</span></button>`).join('')}
+      ` : ''}
+      <div id="finalizeErrorMsg" style="color:var(--danger);font-size:13px;margin-top:10px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Annuleren</button>
+    </div>
+  `);
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+  const errBox = document.getElementById('finalizeErrorMsg');
+  const allActionButtons = () => document.querySelectorAll('#pickNewNumberBtn,[data-reuse]');
+  const setBusy = (busy)=>{ allActionButtons().forEach(b=>{ b.disabled = busy; b.style.opacity = busy?'0.6':''; }); };
+  document.getElementById('pickNewNumberBtn').addEventListener('click', async ()=>{
+    setBusy(true); errBox.textContent = '';
+    try{
+      await updateCompany({nextNumber: seq+1});
+      state.company.nextNumber = seq+1;
+      await onChosen(previewNumber, seq);
+    }catch(err){
+      setBusy(false);
+      errBox.textContent = 'Er ging iets mis bij het toekennen van het nummer: ' + (err && err.message ? err.message : String(err)) + '. Probeer het nogmaals.';
+    }
+  });
+  document.querySelectorAll('[data-reuse]').forEach(btn=>btn.addEventListener('click', async ()=>{
+    setBusy(true); errBox.textContent = '';
+    try{
+      const rel = byId(state.releasedNumbers, btn.dataset.reuse);
+      if(!rel) return;
+      await deleteFromCollection('releasedNumbers', rel.id);
+      state.releasedNumbers = state.releasedNumbers.filter(r=>r.id!==rel.id);
+      const parts = rel.number.split('-');
+      const seqPart = parseInt(parts[parts.length-1],10) || 0;
+      await onChosen(rel.number, seqPart);
+    }catch(err){
+      setBusy(false);
+      errBox.textContent = 'Er ging iets mis bij het hergebruiken van het nummer: ' + (err && err.message ? err.message : String(err)) + '. Probeer het nogmaals.';
+    }
+  }));
+}
+async function releaseInvoiceNumber(inv){
+  if(!inv.number) return;
+  const year = (inv.date||'').slice(0,4) || String(new Date().getFullYear());
+  const created = await addToCollection('releasedNumbers', {number: inv.number, year});
+  state.releasedNumbers.push(created);
+}
+
+/* ================= FACTUREN ================= */
+let invoiceFilter = 'alle';
+function renderFacturen(){
+  const filters = [['alle','Alle'],['concept','Concept'],['verzonden','Verzonden'],['late','Te laat'],['betaald','Betaald'],['credit','Credit']];
+
+  let list = state.invoices;
+  if(invoiceFilter!=='alle') list = list.filter(i=>invoiceDisplayStatus(i)===invoiceFilter);
+  return `
+    <div class="pagehead">
+      <div><h1>Facturen</h1><p>${state.invoices.length} ${state.invoices.length===1?'factuur':'facturen'} totaal.</p></div>
+      <button class="btn btn-primary" data-action="new-invoice" ${state.customers.length===0?'disabled title="Voeg eerst een klant toe"':''}>${ICONS.plus} Nieuwe factuur</button>
+    </div>
+    ${state.customers.length===0 ? `<div class="banner">Voeg eerst een klant toe voordat je een factuur maakt. <button class="btn btn-sm" data-view="klanten">Naar klanten</button></div>` : ''}
+    <div class="panel">
+      <div class="panel-head">
+        <div class="filters">${filters.map(([k,l])=>`<button data-filter="${k}" class="${invoiceFilter===k?'active':''}">${l}</button>`).join('')}</div>
+      </div>
+      ${list.length===0 ? emptyState('Geen facturen in dit filter','Pas het filter aan of maak een nieuwe factuur.') : `
+      <table>
+        <thead><tr><th>Nummer</th><th>Klant</th><th>Datum</th><th>Vervaldatum</th><th class="num">Bedrag</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          ${list.map(inv=>`<tr>
+            <td data-label="Nummer"><strong style="color:${inv.isCredit?'var(--danger)':'var(--brand-blue-deep)'}">${esc(displayInvoiceNumber(inv))}</strong></td>
+            <td data-label="Klant">${esc(customerName(inv.customerId))}</td>
+            <td data-label="Datum">${fmtDate(inv.date)}</td>
+            <td data-label="Vervaldatum">${inv.isCredit?'—':fmtDate(inv.dueDate)}</td>
+            <td data-label="Bedrag" class="num">${fmtMoney(inv.isCredit?-invoiceGrandTotal(inv):invoiceGrandTotal(inv))}</td>
+            <td data-label="Status">${statusTagHtml(inv)}</td>
+            <td class="rowactions">
+              <button class="btn btn-sm btn-ghost" data-action="view-invoice" data-id="${inv.id}">${ICONS.eye} Bekijk</button>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  `;
+}
+
+/* ---- invoice line-editor state (used inside new-invoice modal) ---- */
+let draftLines = [];
+function newLine(){ return {id:uid(), description:'', quantity:1, unit:'stuk', price:0, vat: (state.company.defaultVat!=null?state.company.defaultVat:21), category:'materiaal'}; }
+function draftTotalsHtml(){
+  const dummy = {lines: draftLines};
+  const sub = invoiceTotal(dummy);
+  const vatMap = invoiceVatBreakdown(dummy);
+  const vatTotal = invoiceVatTotal(dummy);
+  const grand = sub + vatTotal;
+  return `
+    <div class="totalsbox">
+      <div class="row"><span>Subtotaal</span><span>${fmtMoney(sub)}</span></div>
+      ${Object.keys(vatMap).sort().map(rate=>`<div class="row"><span>BTW ${rate}%</span><span>${fmtMoney(vatMap[rate])}</span></div>`).join('')}
+      <div class="row total"><span>Totaal</span><span>${fmtMoney(grand)}</span></div>
+    </div>
+  `;
+}
+function linesEditorHtml(){
+  return `
+    <table class="lines-table">
+      <thead><tr><th style="width:38%">Omschrijving</th><th style="width:12%">Aantal</th><th style="width:14%">Eenheid</th><th style="width:16%">Prijs (excl.)</th><th style="width:10%">BTW%</th><th style="width:14%">Bedrag</th><th></th></tr></thead>
+      <tbody id="lineRows">
+        ${draftLines.map((l,idx)=>lineRowHtml(l,idx)).join('')}
+      </tbody>
+    </table>
+    <button type="button" class="btn btn-sm" id="addLineBtn">${ICONS.plus} Regel toevoegen</button>
+  `;
+}
+function lineRowHtml(l, idx){
+  return `<tr data-line-id="${l.id}">
+    <td><input type="text" data-field="description" value="${esc(l.description)}" placeholder="Omschrijving"></td>
+    <td><input type="number" step="0.01" data-field="quantity" value="${esc(l.quantity)}"></td>
+    <td><input type="text" data-field="unit" value="${esc(l.unit)}"></td>
+    <td><input type="number" step="0.01" data-field="price" value="${esc(l.price)}"></td>
+    <td><input type="number" step="1" data-field="vat" value="${esc(l.vat)}"></td>
+    <td class="linetotal">${fmtMoney(lineTotal(l))}</td>
+    <td><button type="button" class="iconbtn" data-remove-line="${l.id}">${ICONS.trash}</button></td>
+  </tr>`;
+}
+function refreshLinesTable(){
+  document.getElementById('lineRows').innerHTML = draftLines.map((l,idx)=>lineRowHtml(l,idx)).join('');
+  document.getElementById('draftTotals').innerHTML = draftTotalsHtml();
+  wireLineRowEvents();
+}
+function wireLineRowEvents(){
+  document.querySelectorAll('#lineRows tr').forEach(tr=>{
+    const id = tr.dataset.lineId;
+    const line = draftLines.find(l=>l.id===id);
+    tr.querySelectorAll('input').forEach(inp=>{
+      inp.addEventListener('input', ()=>{
+        const field = inp.dataset.field;
+        line[field] = (field==='quantity'||field==='price'||field==='vat') ? Number(inp.value)||0 : inp.value;
+        tr.querySelector('.linetotal').textContent = fmtMoney(lineTotal(line));
+        document.getElementById('draftTotals').innerHTML = draftTotalsHtml();
+      });
+    });
+  });
+  document.querySelectorAll('[data-remove-line]').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      draftLines = draftLines.filter(l=>l.id!==b.dataset.removeLine);
+      refreshLinesTable();
+    });
+  });
+}
+
+function openInvoiceModal(preselect){
+  preselect = preselect || {};
+  draftLines = preselect.projectId ? [] : [newLine()];
+  const html = `
+    <div class="modal-head"><h2>Nieuwe factuur</h2><button class="iconbtn" data-close>${ICONS.close}</button></div>
+    <div class="modal-body">
+      <form id="invoiceForm">
+        <div class="field-row">
+          <div class="field"><label>Klant *</label>
+            <select name="customerId" id="invCustomerSelect" required>
+              <option value="">Kies een klant…</option>
+              ${state.customers.map(c=>`<option value="${c.id}" ${preselect.customerId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <div class="field"><label>Project (optioneel)</label>
+            <select name="projectId" id="invProjectSelect"><option value="">Geen project</option></select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>Factuurdatum</label><input type="date" name="date" id="invDate" value="${todayStr()}"></div>
+          <div class="field"><label>Vervaldatum</label><input type="date" name="dueDate" id="invDueDate" value="${addDays(todayStr(), state.company.paymentTermDays||14)}"></div>
+        </div>
+        <div id="unbilledWrap"></div>
+        <fieldset>
+          <legend>Factuurregels</legend>
+          <div id="linesEditorWrap">${linesEditorHtml()}</div>
+          <div id="draftTotals" style="margin-top:10px;">${draftTotalsHtml()}</div>
+        </fieldset>
+        <div class="field"><label>Notities op factuur (optioneel)</label><textarea name="notes" placeholder="Bijv. projectomschrijving of bedankje"></textarea></div>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Annuleren</button>
+      <button class="btn" id="saveConceptBtn">Opslaan als concept</button>
+      <button class="btn btn-primary" id="saveSendBtn">Opslaan &amp; markeer verzonden</button>
+    </div>
+  `;
+  openModal(html, true);
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+  wireLineRowEvents();
+  document.getElementById('addLineBtn').addEventListener('click', ()=>{ draftLines.push(newLine()); refreshLinesTable(); });
+
+  function refreshProjectOptions(){
+    const custId = document.getElementById('invCustomerSelect').value;
+    const projSel = document.getElementById('invProjectSelect');
+    const projs = state.projects.filter(p=>p.customerId===custId);
+    projSel.innerHTML = '<option value="">Geen project</option>' + projs.map(p=>`<option value="${p.id}" ${preselect.projectId===p.id?'selected':''}>${esc(p.name)}</option>`).join('');
+    refreshUnbilled();
+  }
+  function refreshUnbilled(){
+    const custId = document.getElementById('invCustomerSelect').value;
+    const projId = document.getElementById('invProjectSelect').value;
+    const wrap = document.getElementById('unbilledWrap');
+    if(!custId){ wrap.innerHTML=''; return; }
+    const unbilledHours = projId ? unbilledHoursForProject(projId) : unbilledHoursForCustomer(custId);
+    const unbilledCosts = projId ? unbilledCostsForProject(projId) : unbilledCostsForCustomer(custId);
+    const unbilledKms = projId ? unbilledKmsForProject(projId) : unbilledKmsForCustomer(custId);
+    if(unbilledHours.length===0 && unbilledCosts.length===0 && unbilledKms.length===0){ wrap.innerHTML=''; return; }
+    const projLabel = item => { const p = byId(state.projects, item.projectId); return p ? ` <span style="color:var(--ink-soft);font-size:12px;">(${esc(p.name)})</span>` : ''; };
+    wrap.innerHTML = `
+      ${!projId && (unbilledHours.length||unbilledCosts.length||unbilledKms.length) ? `<p class="hint" style="margin-top:0;">Er is geen specifiek project gekozen — hieronder staat alles wat nog openstaat voor deze klant, over al zijn projecten heen.</p>` : ''}
+      ${unbilledHours.length? `
+      <div class="field"><label>Openstaande uren</label></div>
+      <div class="unbilled-list">
+        ${unbilledHours.map(h=>`<label><input type="checkbox" data-hour-id="${h.id}"> <span style="flex:1">${fmtDate(h.date)} — ${esc(h.description)||'Werkzaamheden'}${h.useFixedAmount?' (vast bedrag)':''}${projLabel(h)}</span> <span>${h.useFixedAmount?fmtMoney(h.fixedAmount):fmtNum(h.hours,2)+' u'}</span></label>`).join('')}
+      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:400;margin:6px 0;"><input type="checkbox" id="combineHoursCheck"> <span>Samenvoegen tot één regel (anders: elke dag een aparte regel)</span></label>
+      <button type="button" class="btn btn-sm" id="importHoursBtn">Geselecteerde uren toevoegen</button>
+      ` : ''}
+      ${unbilledCosts.length? `
+      <div class="field" style="margin-top:14px;"><label>Openstaande kosten</label></div>
+      <div class="unbilled-list">
+        ${unbilledCosts.map(c=>`<label><input type="checkbox" data-cost-id="${c.id}"> <span style="flex:1">${fmtDate(c.date)} — ${esc(c.description)||'Kosten'}${projLabel(c)}</span> <span>${fmtMoney(c.amount)}</span></label>`).join('')}
+      </div>
+      <button type="button" class="btn btn-sm" id="importCostsBtn">Geselecteerde kosten toevoegen</button>
+      ` : ''}
+      ${unbilledKms.length? `
+      <div class="field" style="margin-top:14px;"><label>Openstaande kilometers</label></div>
+      <div class="unbilled-list">
+        ${unbilledKms.map(k=>`<label><input type="checkbox" data-km-id="${k.id}"> <span style="flex:1">${fmtDate(k.date)} — ${esc(k.description)||'Kilometers'}${k.useFixedAmount?' (vast bedrag)':' ('+fmtNum(k.km,0)+' km)'}${projLabel(k)}</span> <span>${fmtMoney(kmAmount(k))}</span></label>`).join('')}
+      </div>
+      <button type="button" class="btn btn-sm" id="importKmsBtn">Geselecteerde kilometers toevoegen</button>
+      ` : ''}
+    `;
+    const importHoursBtn = document.getElementById('importHoursBtn');
+    if(importHoursBtn) importHoursBtn.addEventListener('click', ()=>{
+      const checked = Array.from(wrap.querySelectorAll('input[data-hour-id]:checked')).map(c=>c.dataset.hourId);
+      if(checked.length===0){ showToast('Selecteer eerst uren'); return; }
+      const combine = document.getElementById('combineHoursCheck').checked;
+      const rateFor = h => { if(h.rate) return Number(h.rate); const p = byId(state.projects, h.projectId); return p && p.hourlyRate ? p.hourlyRate : 0; };
+      if(combine){
+        const normalIds = checked.filter(id=>!byId(state.hours,id).useFixedAmount);
+        const fixedIds = checked.filter(id=>byId(state.hours,id).useFixedAmount);
+        if(normalIds.length){
+          const firstHour = byId(state.hours, normalIds[0]);
+          const proj = byId(state.projects, firstHour.projectId);
+          const rate = firstHour.rate ? Number(firstHour.rate) : (proj && proj.hourlyRate ? proj.hourlyRate : 0);
+          const totalHours = normalIds.reduce((s,id)=> s + Number(byId(state.hours,id).hours||0), 0);
+          const vat = byId(state.hours, normalIds[0]).vat;
+          draftLines.push({id:uid(), description: `Werkzaamheden ${proj?proj.name:''}`.trim(), quantity: totalHours, unit:'uur', price: rate, vat: vat!=null?vat:((state.company.defaultVat!=null?state.company.defaultVat:21)), category:'uren', _hourIds: normalIds});
+        }
+        fixedIds.forEach(id=>{
+          const h = byId(state.hours, id);
+          draftLines.push({id:uid(), description: `${fmtDate(h.date)} — ${h.description||'Werkzaamheden'}`.trim(), quantity:1, unit:'vast', price: h.fixedAmount, vat: h.vat!=null?h.vat:((state.company.defaultVat!=null?state.company.defaultVat:21)), category:'uren', _hourIds:[id]});
+        });
+      } else {
+        checked.forEach(id=>{
+          const h = byId(state.hours, id);
+          const rate = rateFor(h);
+          const proj = byId(state.projects, h.projectId);
+          if(h.useFixedAmount){
+            draftLines.push({id:uid(), description: `${fmtDate(h.date)} — ${h.description||'Werkzaamheden'}`.trim(), quantity:1, unit:'vast', price: h.fixedAmount, vat: h.vat!=null?h.vat:((state.company.defaultVat!=null?state.company.defaultVat:21)), category:'uren', _hourIds:[id]});
+          } else {
+            draftLines.push({id:uid(), description: `${fmtDate(h.date)} — ${h.description || ('Werkzaamheden '+(proj?proj.name:''))}`.trim(), quantity: h.hours, unit:'uur', price: rate, vat: h.vat!=null?h.vat:((state.company.defaultVat!=null?state.company.defaultVat:21)), category:'uren', _hourIds:[id]});
+          }
+        });
+      }
+      refreshLinesTable();
+      showToast(combine ? 'Uren toegevoegd als één regel' : 'Uren toegevoegd, per dag een regel');
+    });
+    const importCostsBtn = document.getElementById('importCostsBtn');
+    if(importCostsBtn) importCostsBtn.addEventListener('click', ()=>{
+      const checked = Array.from(wrap.querySelectorAll('input[data-cost-id]:checked')).map(c=>c.dataset.costId);
+      if(checked.length===0){ showToast('Selecteer eerst kosten'); return; }
+      checked.forEach(id=>{
+        const c = byId(state.costs, id);
+        draftLines.push({id:uid(), description: `${fmtDate(c.date)} — ${c.description||'Kosten'}`.trim(), quantity:1, unit:'stuk', price: c.amount, vat: c.vat!=null?c.vat:((state.company.defaultVat!=null?state.company.defaultVat:21)), category:'materiaal', _costIds:[id]});
+      });
+      refreshLinesTable();
+      showToast('Kosten toegevoegd als regel');
+    });
+    const importKmsBtn = document.getElementById('importKmsBtn');
+    if(importKmsBtn) importKmsBtn.addEventListener('click', ()=>{
+      const checked = Array.from(wrap.querySelectorAll('input[data-km-id]:checked')).map(c=>c.dataset.kmId);
+      if(checked.length===0){ showToast('Selecteer eerst kilometers'); return; }
+      checked.forEach(id=>{
+        const k = byId(state.kms, id);
+        if(k.useFixedAmount){
+          draftLines.push({id:uid(), description: `${fmtDate(k.date)} — ${k.description||'Kilometervergoeding'}`.trim(), quantity:1, unit:'vast', price: k.fixedAmount, vat: k.vat!=null?k.vat:((state.company.defaultVat!=null?state.company.defaultVat:21)), category:'km', _kmIds:[id]});
+        } else {
+          draftLines.push({id:uid(), description: `${fmtDate(k.date)} — ${k.description||'Kilometervergoeding'}`.trim(), quantity: k.km, unit:'km', price: k.rate, vat: k.vat!=null?k.vat:((state.company.defaultVat!=null?state.company.defaultVat:21)), category:'km', _kmIds:[id]});
+        }
+      });
+      refreshLinesTable();
+      showToast('Kilometers toegevoegd als regel');
+    });
+    if(preselect.autoImportAll && (!preselect.projectId || projId===preselect.projectId)){
+      wrap.querySelectorAll('input[type=checkbox][data-hour-id],input[type=checkbox][data-cost-id],input[type=checkbox][data-km-id]').forEach(cb=>cb.checked=true);
+      if(importHoursBtn) importHoursBtn.click();
+      if(importCostsBtn) importCostsBtn.click();
+      if(importKmsBtn) importKmsBtn.click();
+      preselect.autoImportAll = false;
+    }
+  }
+  document.getElementById('invCustomerSelect').addEventListener('change', refreshProjectOptions);
+  document.getElementById('invProjectSelect').addEventListener('change', refreshUnbilled);
+  if(preselect.customerId){ refreshProjectOptions(); }
+
+  async function doSave(markSent){
+    const form = document.getElementById('invoiceForm');
+    if(!form.reportValidity()) return;
+    if(draftLines.length===0 || draftLines.every(l=>!l.description)){ showToast('Voeg minstens één factuurregel toe'); return; }
+    const fd = Object.fromEntries(new FormData(form).entries());
+    const billedHourIds = [];
+    draftLines.forEach(l=>{ if(l._hourIds) billedHourIds.push(...l._hourIds); });
+    const billedCostIds = [];
+    draftLines.forEach(l=>{ if(l._costIds) billedCostIds.push(...l._costIds); });
+    const billedKmIds = [];
+    draftLines.forEach(l=>{ if(l._kmIds) billedKmIds.push(...l._kmIds); });
+    const linesToSave = draftLines.filter(l=>l.description).map(l=>({description:l.description,quantity:l.quantity,unit:l.unit,price:l.price,vat:l.vat,category:l.category||'materiaal'}));
+    const finishSave = async (number, sequenceNumber, status)=>{
+      const invoiceData = {
+        number: number||null, sequenceNumber: sequenceNumber||null,
+        date: fd.date, dueDate: fd.dueDate,
+        customerId: fd.customerId, projectId: fd.projectId||null,
+        lines: linesToSave,
+        notes: fd.notes||'', status,
+        isCredit:false, creditForNumber:null, billedHourIds, billedCostIds, billedKmIds, showCustomerNotes:true,
+        createdAt: nowIso()
+      };
+      const created = await addToCollection('invoices', invoiceData);
+      state.invoices.unshift(created);
+      for(const hid of billedHourIds){
+        await updateInCollection('hours', hid, {billed:true, invoiceId: created.id});
+        const h = byId(state.hours, hid); if(h){ h.billed=true; h.invoiceId=created.id; }
+      }
+      for(const cid of billedCostIds){
+        await updateInCollection('costs', cid, {billed:true, invoiceId: created.id});
+        const c = byId(state.costs, cid); if(c){ c.billed=true; c.invoiceId=created.id; }
+      }
+      for(const kid of billedKmIds){
+        await updateInCollection('kms', kid, {billed:true, invoiceId: created.id});
+        const k = byId(state.kms, kid); if(k){ k.billed=true; k.invoiceId=created.id; }
+      }
+      closeModal();
+      showToast(markSent? `Factuur ${number} aangemaakt en verzonden` : 'Concept opgeslagen (nog geen factuurnummer)');
+      setView('facturen');
+      openInvoiceDetail(created.id);
+    };
+    if(markSent){
+      const year = new Date(fd.date).getFullYear();
+      openFinalizeNumberPicker(year, (number, seq)=>finishSave(number, seq, 'verzonden'));
+    } else {
+      await finishSave(null, null, 'concept');
+    }
+  }
+  document.getElementById('saveConceptBtn').addEventListener('click', ()=>doSave(false));
+  document.getElementById('saveSendBtn').addEventListener('click', ()=>doSave(true));
+}
+
+/* ---- invoice detail / preview ---- */
+function invoiceDocHtml(inv){
+  const cust = byId(state.customers, inv.customerId) || {};
+  const company = state.company;
+  const vatMap = invoiceVatBreakdown(inv);
+  return `
+    <div class="idoc-top">
+      <img src="${LOGO_DATA_URI}" alt="${esc(company.name)}">
+      <div class="idoc-company">
+        <strong>${esc(company.name)}</strong><br>
+        ${esc(company.address)||''}<br>
+        ${esc(company.postcode)||''} ${esc(company.city)||''}<br>
+        ${company.kvk?`KvK ${esc(company.kvk)}<br>`:''}
+        ${company.btwNummer?`BTW ${esc(company.btwNummer)}<br>`:''}
+        ${company.email?`${esc(company.email)}<br>`:''}
+        ${company.phone?`${esc(company.phone)}`:''}
+      </div>
+    </div>
+    <h2 class="idoc-title ${inv.isCredit?'credit':''}">${inv.isCredit?'Creditfactuur':(inv.number?'Factuur':'Conceptfactuur')} ${esc(displayInvoiceNumber(inv))}</h2>
+    <div class="idoc-meta">
+      Datum: ${fmtDate(inv.date)}${inv.isCredit?'':` &nbsp;•&nbsp; Vervaldatum: ${fmtDate(inv.dueDate)}`}
+      ${inv.creditForNumber?`<br>Creditering van factuur ${esc(inv.creditForNumber)}`:''}
+    </div>
+    <div class="idoc-to">
+      <div class="lbl">Aan</div>
+      <strong>${esc(cust.name||'')}</strong><br>
+      ${cust.contactName?`t.a.v. ${esc(cust.contactName)}<br>`:''}
+      ${cust.address?`${esc(cust.address)}<br>`:''}
+      ${cust.postcode||cust.city?`${esc(cust.postcode)||''} ${esc(cust.city)||''}<br>`:''}
+      ${cust.email?`${esc(cust.email)}<br>`:''}
+      ${(inv.showCustomerNotes!==false && cust.notes)?`<span class="idoc-customernote">${esc(cust.notes)}</span>`:''}
+    </div>
+    <table>
+      <thead><tr><th>Omschrijving</th><th class="num">Aantal</th><th>Eenheid</th><th class="num">Prijs</th><th class="num">BTW</th><th class="num">Bedrag</th></tr></thead>
+      <tbody>
+        ${(inv.lines||[]).map(l=>`<tr>
+          <td>${esc(l.description)}</td>
+          <td class="num">${fmtNum(l.quantity,2)}</td>
+          <td>${esc(l.unit)}</td>
+          <td class="num">${fmtMoney(l.price)}</td>
+          <td class="num">${l.vat}%</td>
+          <td class="num">${fmtMoney(lineTotal(l))}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="idoc-totals">
+      <div class="row"><span>Subtotaal</span><span>${fmtMoney(invoiceTotal(inv))}</span></div>
+      ${Object.keys(vatMap).sort().map(rate=>`<div class="row"><span>BTW ${rate}%</span><span>${fmtMoney(vatMap[rate])}</span></div>`).join('')}
+      <div class="row total"><span>Totaal</span><span>${fmtMoney(invoiceGrandTotal(inv))}</span></div>
+    </div>
+    <div class="idoc-footer">${esc(company.iban? 'IBAN '+company.iban+(company.ibanName?' t.n.v. '+company.ibanName:'') : '')}${company.iban && company.footerNote ? '\\n' : ''}${esc(company.footerNote||'')}</div>
+  `;
+}
+
+function openInvoiceDetail(id){
+  const inv = byId(state.invoices, id);
+  if(!inv) return;
+  const cust = byId(state.customers, inv.customerId) || {};
+  const status = invoiceDisplayStatus(inv);
+  openModal(`
+    <div class="modal-head">
+      <h2>${inv.isCredit?'Creditfactuur':(inv.number?'Factuur':'Conceptfactuur')} ${esc(displayInvoiceNumber(inv))} ${statusTagHtml(inv)}</h2>
+      <button class="iconbtn" data-close>${ICONS.close}</button>
+    </div>
+    <div class="modal-body">
+      ${(cust.notes) ? `<label style="display:flex;align-items:center;gap:6px;font-weight:400;margin-bottom:10px;"><input type="checkbox" id="showCustomerNotesToggle" ${inv.showCustomerNotes!==false?'checked':''}> <span>Klantopmerking tonen op factuur: "${esc(cust.notes)}"</span></label>` : ''}
+      <div class="invoice-doc" id="invoiceDocPreview">${invoiceDocHtml(inv)}</div>
+    </div>
+    <div class="modal-foot" style="flex-wrap:wrap;justify-content:flex-start;gap:8px;">
+      ${inv.number ? `<button class="btn" id="downloadPdfBtn">${ICONS.pdf} Download PDF</button>` : ''}
+      ${(inv.number && cust.email)?`<button class="btn" id="mailBtn">${ICONS.mail} Verstuur per e-mail</button>`:''}
+      ${!inv.isCredit && !inv.number ? `<button class="btn btn-primary" id="finalizeBtn">${ICONS.check} Definitief maken (nummer toekennen)</button>`:''}
+      ${!inv.isCredit && inv.number && (inv.status==='verzonden') ? `<button class="btn" id="markPaidBtn">${ICONS.check} Markeer als betaald</button>`:''}
+      ${!inv.isCredit && inv.number ? `<button class="btn" id="creditBtn">${ICONS.reverse} Creditfactuur maken</button>`:''}
+      <button class="btn btn-danger" id="deleteInvBtn">${ICONS.trash} Verwijderen</button>
+      <span style="flex:1"></span>
+      <button class="btn" data-close>Sluiten</button>
+    </div>
+  `, true);
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+  const notesToggle = document.getElementById('showCustomerNotesToggle');
+  if(notesToggle) notesToggle.addEventListener('change', async ()=>{
+    inv.showCustomerNotes = notesToggle.checked;
+    await updateInCollection('invoices', inv.id, {showCustomerNotes: notesToggle.checked});
+    document.getElementById('invoiceDocPreview').innerHTML = invoiceDocHtml(inv);
+  });
+  const downloadBtn = document.getElementById('downloadPdfBtn');
+  if(downloadBtn) downloadBtn.addEventListener('click', ()=>downloadInvoicePdf(inv));
+  if(inv.number && cust.email){
+    document.getElementById('mailBtn').addEventListener('click', ()=>showMailInstructions(inv, cust));
+  }
+  const finalizeBtn = document.getElementById('finalizeBtn');
+  if(finalizeBtn) finalizeBtn.addEventListener('click', ()=>{
+    const year = new Date(inv.date).getFullYear();
+    openFinalizeNumberPicker(year, async (number, seq)=>{
+      await updateInCollection('invoices', inv.id, {number, sequenceNumber: seq, status:'verzonden'});
+      inv.number = number; inv.sequenceNumber = seq; inv.status = 'verzonden';
+      closeModal();
+      showToast(`Factuur is definitief: ${number}`);
+      render();
+      openInvoiceDetail(inv.id);
+    });
+  });
+  const markSentBtn = document.getElementById('markSentBtn');
+  if(markSentBtn) markSentBtn.addEventListener('click', async ()=>{
+    await updateInCollection('invoices', inv.id, {status:'verzonden'}); inv.status='verzonden';
+    showToast('Factuur gemarkeerd als verzonden'); closeModal(); render();
+  });
+  const markPaidBtn = document.getElementById('markPaidBtn');
+  if(markPaidBtn) markPaidBtn.addEventListener('click', async ()=>{
+    await updateInCollection('invoices', inv.id, {status:'betaald'}); inv.status='betaald';
+    showToast('Factuur gemarkeerd als betaald'); closeModal(); render();
+  });
+  const creditBtn = document.getElementById('creditBtn');
+  if(creditBtn) creditBtn.addEventListener('click', ()=>{ closeModal(); createCreditNote(inv); });
+  const deleteInvBtn = document.getElementById('deleteInvBtn');
+  if(deleteInvBtn) deleteInvBtn.addEventListener('click', ()=>{
+    confirmDialog(inv.number?'Factuur verwijderen?':'Concept verwijderen?', inv.number? `Weet je zeker dat je factuur ${esc(inv.number)} wilt verwijderen? Het nummer komt vrij om later te hergebruiken, en de uren/kosten/km worden weer open gezet.` : `Weet je zeker dat je dit concept wilt verwijderen?`, 'Verwijderen', async ()=>{
+      if(inv.number) await releaseInvoiceNumber(inv);
+      await deleteFromCollection('invoices', inv.id);
+      state.invoices = state.invoices.filter(i=>i.id!==inv.id);
+      for(const hid of (inv.billedHourIds||[])){
+        await updateInCollection('hours', hid, {billed:false, invoiceId:null});
+        const h = byId(state.hours, hid); if(h){ h.billed=false; h.invoiceId=null; }
+      }
+      for(const cid of (inv.billedCostIds||[])){
+        await updateInCollection('costs', cid, {billed:false, invoiceId:null});
+        const c = byId(state.costs, cid); if(c){ c.billed=false; c.invoiceId=null; }
+      }
+      for(const kid of (inv.billedKmIds||[])){
+        await updateInCollection('kms', kid, {billed:false, invoiceId:null});
+        const k = byId(state.kms, kid); if(k){ k.billed=false; k.invoiceId=null; }
+      }
+      closeModal();
+      showToast(inv.number ? 'Factuur verwijderd, nummer vrijgegeven' : 'Concept verwijderd'); render();
+    });
+  });
+}
+
+async function createCreditNote(original){
+  const seq = state.company.nextNumber || 1;
+  const number = `${state.company.invoicePrefix||'FACT'}-${new Date().getFullYear()}-${String(seq).padStart(3,'0')}`;
+  const data = {
+    number, sequenceNumber: seq,
+    date: todayStr(), dueDate: null,
+    customerId: original.customerId, projectId: original.projectId||null,
+    lines: (original.lines||[]).map(l=>Object.assign({},l)),
+    notes: original.notes||'', status:'verzonden',
+    isCredit:true, creditForNumber: original.number, billedHourIds:[], billedCostIds:[], billedKmIds:[],
+    createdAt: nowIso()
+  };
+  const created = await addToCollection('invoices', data);
+  state.invoices.unshift(created);
+  await updateCompany({nextNumber: seq+1});
+  state.company.nextNumber = seq+1;
+  showToast('Creditfactuur aangemaakt');
+  render();
+  openInvoiceDetail(created.id);
+}
+
+/* ---- PDF generation ---- */
+function buildInvoicePdf(inv){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({unit:'mm', format:'a4'});
+  const company = state.company;
+  const cust = byId(state.customers, inv.customerId) || {};
+  const pageW = 210, marginX = 20;
+  let y = 20;
+
+  try{ doc.addImage(LOGO_DATA_URI_PDF, 'PNG', marginX, y-4, 84, 84*(337/1228)); }catch(e){}
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  const compLines = [company.name];
+  if(company.address) compLines.push(company.address);
+  if(company.postcode||company.city) compLines.push(`${company.postcode||''} ${company.city||''}`.trim());
+  if(company.kvk) compLines.push(`KvK ${company.kvk}`);
+  if(company.btwNummer) compLines.push(`BTW ${company.btwNummer}`);
+  if(company.email) compLines.push(company.email);
+  if(company.phone) compLines.push(company.phone);
+  doc.setFont('helvetica','bold'); doc.setTextColor(20,20,20);
+  doc.text(company.name||'', pageW-marginX, y, {align:'right'});
+  doc.setFont('helvetica','normal'); doc.setTextColor(70,70,70);
+  let cy = y+5;
+  compLines.slice(1).forEach(line=>{ doc.text(line, pageW-marginX, cy, {align:'right'}); cy+=4.3; });
+
+  y = 46;
+  doc.setFont('helvetica','bold'); doc.setFontSize(20);
+  doc.setTextColor(...(inv.isCredit?[179,72,72]:[60,95,143]));
+  doc.text(`${inv.isCredit?'Creditfactuur':'Factuur'} ${displayInvoiceNumber(inv)}`, marginX, y);
+  y+=7;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(90,90,90);
+  let metaLine = `Datum: ${fmtDate(inv.date)}`;
+  if(!inv.isCredit) metaLine += `    Vervaldatum: ${fmtDate(inv.dueDate)}`;
+  doc.text(metaLine, marginX, y);
+  if(inv.creditForNumber){ y+=5; doc.text(`Creditering van factuur ${inv.creditForNumber}`, marginX, y); }
+  y+=10;
+
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(140,140,140);
+  doc.text('AAN', marginX, y); y+=5;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10.5); doc.setTextColor(20,20,20);
+  doc.text(cust.name||'', marginX, y); y+=5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(70,70,70);
+  if(cust.contactName){ doc.text(`t.a.v. ${cust.contactName}`, marginX, y); y+=4.3; }
+  if(cust.address){ doc.text(cust.address, marginX, y); y+=4.3; }
+  if(cust.postcode||cust.city){ doc.text(`${cust.postcode||''} ${cust.city||''}`.trim(), marginX, y); y+=4.3; }
+  y+=8;
+
+  const colX = {desc:marginX, qty:108, unit:113, price:150, vat:172, total:190};
+  doc.setFont('helvetica','bold'); doc.setFontSize(8.5); doc.setTextColor(30,30,30);
+  doc.text('OMSCHRIJVING', colX.desc, y);
+  doc.text('AANTAL', colX.qty, y, {align:'right'});
+  doc.text('EENH.', colX.unit, y);
+  doc.text('PRIJS', colX.price, y, {align:'right'});
+  doc.text('BTW', colX.vat, y, {align:'right'});
+  doc.text('BEDRAG', colX.total, y, {align:'right'});
+  y+=2.5;
+  doc.setDrawColor(30,30,30); doc.setLineWidth(0.4);
+  doc.line(marginX, y, pageW-marginX, y);
+  y+=6;
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(30,30,30);
+  (inv.lines||[]).forEach(l=>{
+    const descLines = doc.splitTextToSize(l.description||'', 78);
+    const rowH = Math.max(descLines.length*4.3, 5);
+    if(y + rowH > 268){ doc.addPage(); y = 22; }
+    doc.text(descLines, colX.desc, y);
+    doc.text(fmtNum(l.quantity,2), colX.qty, y, {align:'right'});
+    doc.text(String(l.unit||''), colX.unit, y);
+    doc.text(fmtMoney(l.price), colX.price, y, {align:'right'});
+    doc.text(`${l.vat}%`, colX.vat, y, {align:'right'});
+    doc.text(fmtMoney(lineTotal(l)), colX.total, y, {align:'right'});
+    y += rowH + 4.5;
+  });
+
+  y += 4;
+  const vatMap = invoiceVatBreakdown(inv);
+  const totalsX1 = 140, totalsX2 = 190;
+  function totalRow(label, value, bold){
+    doc.setFont('helvetica', bold?'bold':'normal'); doc.setFontSize(bold?11:9.5);
+    doc.setTextColor(bold?20:80, bold?20:80, bold?20:80);
+    doc.text(label, totalsX1, y);
+    doc.text(value, totalsX2, y, {align:'right'});
+    y += bold? 7 : 5.2;
+  }
+  if(y>250){ doc.addPage(); y=22; }
+  totalRow('Subtotaal', fmtMoney(invoiceTotal(inv)), false);
+  Object.keys(vatMap).sort().forEach(rate=> totalRow(`BTW ${rate}%`, fmtMoney(vatMap[rate]), false));
+  y += 2.5;
+  doc.setDrawColor(30,30,30); doc.setLineWidth(0.3); doc.line(totalsX1, y, totalsX2, y);
+  y += 5.5;
+  totalRow('Totaal', fmtMoney(invoiceGrandTotal(inv)), true);
+
+  y += 10;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(120,120,120);
+  const footerParts = [];
+  if(company.iban) footerParts.push(`IBAN ${company.iban}${company.ibanName? ' t.n.v. '+company.ibanName:''}`);
+  if(company.footerNote) footerParts.push(company.footerNote);
+  const footerText = footerParts.join('\n');
+  if(footerText){
+    if(y>270){ doc.addPage(); y=22; }
+    doc.setDrawColor(225,225,225); doc.line(marginX, y-4, pageW-marginX, y-4);
+    doc.text(doc.splitTextToSize(footerText, 170), marginX, y);
+  }
+  return doc;
+}
+function waitForJsPdf(timeoutMs){
+  return new Promise((resolve)=>{
+    const start = Date.now();
+    (function check(){
+      if(window.jspdf && window.jspdf.jsPDF){ resolve(true); return; }
+      if(Date.now()-start > timeoutMs){ resolve(false); return; }
+      setTimeout(check, 100);
+    })();
+  });
+}
+async function downloadInvoicePdf(inv){
+  const ready = await waitForJsPdf(3000);
+  if(ready){
+    try{
+      const doc = buildInvoicePdf(inv);
+      const filename = `${displayInvoiceNumber(inv).replace(/[^a-zA-Z0-9-]/g,'_')}.pdf`;
+      const blob = doc.output('blob');
+      offerDownload(filename, blob);
+      return;
+    }catch(err){
+      console.error('PDF build error, falling back to HTML:', err);
+    }
+  }
+  try{
+    const invoiceCss = `body{font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;background:#f2f2f2;margin:0;padding:24px;}
+.invoice-doc{background:#fff;color:#1a1a1a;border-radius:10px;padding:40px;max-width:720px;margin:0 auto;font-size:13px;box-shadow:0 4px 24px rgba(0,0,0,.08);}
+.invoice-doc .idoc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:34px;gap:20px;}
+.invoice-doc .idoc-top img{height:90px;}
+.invoice-doc .idoc-company{text-align:right;font-size:12px;line-height:1.55;color:#333;}
+.invoice-doc .idoc-company strong{color:#111;font-size:13.5px;}
+.invoice-doc h2.idoc-title{font-family:'Space Grotesk',sans-serif;font-size:26px;margin:0 0 2px;color:#3c5f8f;}
+.invoice-doc h2.idoc-title.credit{color:#b34848;}
+.invoice-doc .idoc-meta{color:#555;font-size:12.5px;margin-bottom:26px;}
+.invoice-doc .idoc-to{margin-bottom:26px;}
+.invoice-doc .idoc-to .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#888;margin-bottom:4px;}
+.invoice-doc .idoc-customernote{display:block;font-size:12px;color:#555;margin-top:4px;font-style:italic;}
+.invoice-doc table{width:100%;border-collapse:collapse;margin-bottom:16px;}
+.invoice-doc thead th{font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#777;text-align:left;padding:0 8px 8px 0;border-bottom:1.5px solid #222;}
+.invoice-doc tbody td{padding:9px 8px 9px 0;border-bottom:1px solid #e6e6e6;font-size:13px;}
+.invoice-doc td.num,.invoice-doc th.num{text-align:right;font-variant-numeric:tabular-nums;}
+.invoice-doc .idoc-totals{width:260px;margin-left:auto;font-size:13px;}
+.invoice-doc .idoc-totals .row{display:flex;justify-content:space-between;padding:4px 0;}
+.invoice-doc .idoc-totals .row.total{border-top:1.5px solid #222;margin-top:4px;padding-top:8px;font-weight:700;font-size:15px;}
+.invoice-doc .idoc-footer{margin-top:32px;padding-top:16px;border-top:1px solid #e6e6e6;font-size:11.5px;color:#777;white-space:pre-line;}
+@media print{ body{background:#fff;padding:0;} .invoice-doc{box-shadow:none;border-radius:0;} }`;
+    const fullHtml = `<!DOCTYPE html><html lang="nl"><head><meta charset="UTF-8"><title>${esc(displayInvoiceNumber(inv))}</title><style>${invoiceCss}</style></head><body><div class="invoice-doc">${invoiceDocHtml(inv)}</div></body></html>`;
+    const blob = new Blob([fullHtml], {type:'text/html'});
+    const filename = `${displayInvoiceNumber(inv).replace(/[^a-zA-Z0-9-]/g,'_')}.html`;
+    showToast('PDF-bibliotheek niet beschikbaar — factuur wordt als HTML-bestand aangeboden.');
+    offerDownload(filename, blob);
+  }catch(err){
+    showToast('Bestand maken mislukt: ' + (err && err.message ? err.message : String(err)));
+    console.error('Invoice file build error:', err);
+  }
+}
+async function offerDownload(filename, blob){
+  let downloads = null;
+  try{ downloads = (window.claude && window.claude.use) ? await window.claude.use('downloads') : null; }catch(e){ downloads = null; }
+  if(downloads){
+    try{
+      await downloads.save({filename, data: blob});
+      showToast('PDF opgeslagen');
+    }catch(err){
+      if(err && err.code === 'declined'){ /* user cancelled, no message needed */ }
+      else { showToast('Downloaden mislukt: ' + (err && err.message ? err.message : 'onbekende fout')); }
+    }
+    return;
+  }
+  try{
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+  }catch(e){ showToast('Downloaden lukte niet in deze weergave'); }
+}
+function buildMailtoUrl(inv, cust){
+  const subject = encodeURIComponent(`${inv.isCredit?'Creditfactuur':'Factuur'} ${displayInvoiceNumber(inv)} — ${state.company.name}`);
+  const body = encodeURIComponent(
+`Beste ${cust.contactName||cust.name||''},
+
+Hierbij ontvang je ${inv.isCredit?'creditfactuur':'factuur'} ${displayInvoiceNumber(inv)} ter waarde van ${fmtMoney(inv.isCredit?-invoiceGrandTotal(inv):invoiceGrandTotal(inv))}.
+
+Let op: download eerst de PDF via de knop "Download PDF" en voeg deze hier als bijlage toe — dat kan een e-mailprogramma niet automatisch voor je doen.
+
+Met vriendelijke groet,
+${state.company.name}`
+  );
+  return `mailto:${cust.email}?subject=${subject}&body=${body}`;
+}
+function showMailInstructions(inv, cust){
+  const mailtoUrl = buildMailtoUrl(inv, cust);
+  openModal(`
+    <div class="modal-head"><h3>Factuur per e-mail versturen</h3></div>
+    <div class="modal-body">
+      <p style="margin:0 0 12px;">Een website kan om veiligheidsredenen niet automatisch een bijlage aan een e-mail toevoegen. Volg daarom deze twee stappen:</p>
+      <ol style="margin:0 0 16px;padding-left:20px;line-height:1.7;">
+        <li><strong>Download eerst de PDF</strong> van deze factuur (knop hieronder).</li>
+        <li>Klik daarna op <strong>"Open e-mail"</strong> — je mailprogramma opent met adres, onderwerp en tekst al ingevuld.</li>
+        <li>Voeg in dat mailprogramma de zojuist opgeslagen PDF handmatig toe als bijlage.</li>
+        <li>Verstuur de e-mail.</li>
+      </ol>
+      <p class="hint" style="margin:0;">Opent er niets? Kopieer dan het adres <strong>${esc(cust.email)}</strong> en stuur zelf een nieuwe e-mail.</p>
+    </div>
+    <div class="modal-foot" style="flex-wrap:wrap;justify-content:flex-start;gap:8px;">
+      <button class="btn" id="mailStep1Btn">${ICONS.pdf} 1. Download PDF</button>
+      <a class="btn" id="mailStep2Btn" href="${mailtoUrl}" target="_top" rel="noopener">${ICONS.mail} 2. Open e-mail</a>
+      <span style="flex:1"></span>
+      <button class="btn" data-close>Sluiten</button>
+    </div>
+  `);
+  document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click', closeModal));
+  document.getElementById('mailStep1Btn').addEventListener('click', ()=>downloadInvoicePdf(inv));
+}
+/* ================= INSTELLINGEN ================= */
+function renderInstellingen(){
+  const c = state.company;
+  return `
+    <div class="pagehead"><div><h1>Instellingen</h1><p>Bedrijfsgegevens die op je facturen verschijnen.</p></div></div>
+    <div class="panel">
+      <div class="panel-head"><h3>Bedrijfsgegevens</h3></div>
+      <div style="padding:20px 22px;">
+        <form id="settingsForm">
+          <div class="field"><label>Bedrijfsnaam</label><input type="text" name="name" value="${esc(c.name)}"></div>
+          <div class="field-row">
+            <div class="field"><label>Contactpersoon</label><input type="text" name="contactName" value="${esc(c.contactName)}"></div>
+            <div class="field"><label>E-mailadres</label><input type="email" name="email" value="${esc(c.email)}"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Telefoonnummer</label><input type="tel" name="phone" value="${esc(c.phone)}"></div>
+            <div class="field"><label>Website</label><input type="text" name="website" value="${esc(c.website)}"></div>
+          </div>
+          <div class="field"><label>Adres</label><input type="text" name="address" value="${esc(c.address)}"></div>
+          <div class="field-row">
+            <div class="field"><label>Postcode</label><input type="text" name="postcode" value="${esc(c.postcode)}"></div>
+            <div class="field"><label>Plaats</label><input type="text" name="city" value="${esc(c.city)}"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>KvK-nummer</label><input type="text" name="kvk" value="${esc(c.kvk)}"></div>
+            <div class="field"><label>BTW-nummer</label><input type="text" name="btwNummer" value="${esc(c.btwNummer)}"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>IBAN</label><input type="text" name="iban" value="${esc(c.iban)}"></div>
+            <div class="field"><label>Tenaamstelling rekening</label><input type="text" name="ibanName" value="${esc(c.ibanName)}"></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Standaard BTW-percentage</label><input type="number" name="defaultVat" value="${esc(c.defaultVat)}"></div>
+            <div class="field"><label>Standaard betaaltermijn (dagen)</label><input type="number" name="paymentTermDays" value="${esc(c.paymentTermDays)}"></div>
+          </div>
+          <div class="field"><label>Voettekst op factuur</label><textarea name="footerNote">${esc(c.footerNote)}</textarea></div>
+          <button type="button" class="btn btn-primary" id="saveSettingsBtn">Wijzigingen opslaan</button>
+        </form>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Factuurnummering</h3></div>
+      <div style="padding:18px 22px;">
+        <div class="field-row">
+          <div class="field"><label>Prefix</label><input type="text" id="prefixInput" value="${esc(c.invoicePrefix)}"></div>
+          <div class="field"><label>Volgend factuurnummer</label>
+            <input type="number" id="nextNumberInput" min="1" value="${esc(c.nextNumber||1)}">
+          </div>
+        </div>
+        <p class="hint">Facturen krijgen pas een echt nummer zodra je ze definitief maakt (bij "Verzonden markeren" of via "Definitief maken"). Zo blijft de nummering doorlopend, ook al werk je met concepten. Pas het volgnummer hieronder alleen aan als je bijvoorbeeld overstapt van een ander systeem en wilt doortellen vanaf een bepaald nummer.</p>
+        <p class="hint" id="nextNumberPreview">Eerstvolgende definitieve factuur wordt: <strong>${esc(c.invoicePrefix)}-${new Date().getFullYear()}-${String(c.nextNumber||1).padStart(3,'0')}</strong></p>
+        <button type="button" class="btn" id="savePrefixBtn">Prefix opslaan</button>
+        <button type="button" class="btn" id="saveNextNumberBtn">Volgnummer opslaan</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3 style="color:var(--danger);">Gevarenzone</h3></div>
+      <div style="padding:18px 22px;">
+        <p class="hint">Hiermee verwijder je alle klanten, projecten, uren, kosten, kilometers en facturen definitief. De bedrijfsgegevens en het wachtwoord blijven staan. Gebruik dit alleen om test- of proefgegevens te wissen voordat je écht gaat factureren.</p>
+        <button type="button" class="btn btn-danger" id="wipeDataBtn">Alle klanten, projecten, uren, kosten, kilometers en facturen wissen</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Huisstijl</h3></div>
+      <div style="padding:20px 22px;display:flex;align-items:center;gap:20px;">
+        <img src="${LOGO_DATA_URI}" style="height:50px" alt="Logo">
+        <p class="hint" style="margin:0;">Dit logo en kleurenschema zijn gebruikt op de facturen en in deze app.</p>
+      </div>
+    </div>
+  `;
+}
+function wireInstellingen(){
+  const saveBtn = document.getElementById('saveSettingsBtn');
+  if(saveBtn) saveBtn.addEventListener('click', async ()=>{
+    const form = document.getElementById('settingsForm');
+    const data = Object.fromEntries(new FormData(form).entries());
+    data.defaultVat = Number(data.defaultVat)||0;
+    data.paymentTermDays = Number(data.paymentTermDays)||0;
+    await updateCompany(data);
+    Object.assign(state.company, data);
+    showToast('Instellingen opgeslagen');
+    renderNav();
+  });
+  const prefixBtn = document.getElementById('savePrefixBtn');
+  if(prefixBtn) prefixBtn.addEventListener('click', async ()=>{
+    const val = document.getElementById('prefixInput').value.trim() || 'FACT';
+    await updateCompany({invoicePrefix: val});
+    state.company.invoicePrefix = val;
+    showToast('Prefix opgeslagen');
+    render();
+  });
+  const nextNumberBtn = document.getElementById('saveNextNumberBtn');
+  if(nextNumberBtn) nextNumberBtn.addEventListener('click', async ()=>{
+    const val = Math.max(1, parseInt(document.getElementById('nextNumberInput').value, 10) || 1);
+    await updateCompany({nextNumber: val});
+    state.company.nextNumber = val;
+    showToast('Volgnummer opgeslagen');
+    render();
+  });
+  const wipeBtn = document.getElementById('wipeDataBtn');
+  if(wipeBtn) wipeBtn.addEventListener('click', ()=>{
+    confirmDialog(
+      'Alles wissen?',
+      'Dit verwijdert ALLE klanten, projecten, uren, kosten, kilometers en facturen definitief. Dit kan niet ongedaan gemaakt worden. Bedrijfsgegevens en het wachtwoord blijven staan.',
+      'Ja, alles wissen',
+      async ()=>{
+        for(const c of [...state.customers]) await deleteFromCollection('customers', c.id);
+        for(const p of [...state.projects]) await deleteFromCollection('projects', p.id);
+        for(const h of [...state.hours]) await deleteFromCollection('hours', h.id);
+        for(const co of [...state.costs]) await deleteFromCollection('costs', co.id);
+        for(const k of [...state.kms]) await deleteFromCollection('kms', k.id);
+        for(const i of [...state.invoices]) await deleteFromCollection('invoices', i.id);
+        for(const r of [...state.releasedNumbers]) await deleteFromCollection('releasedNumbers', r.id);
+        state.customers = []; state.projects = []; state.hours = []; state.costs = []; state.kms = []; state.invoices = []; state.releasedNumbers = [];
+        showToast('Alle gegevens zijn gewist');
+        setView('instellingen');
+      }
+    );
+  });
+}
+
+/* ================= render dispatcher & global actions ================= */
+function render(){
+  const content = document.getElementById('content');
+  if(!state.ready){ content.innerHTML = `<div class="emptystate">Bezig met laden…</div>`; return; }
+  let html = '';
+  if(state.view==='dashboard') html = renderDashboard();
+  else if(state.view==='klanten') html = renderKlanten();
+  else if(state.view==='projecten') html = renderProjecten();
+  else if(state.view==='uren') html = renderUren();
+  else if(state.view==='facturen') html = renderFacturen();
+  else if(state.view==='instellingen') html = renderInstellingen();
+  content.innerHTML = html;
+  wireContentEvents();
+  if(state.view==='instellingen') wireInstellingen();
+}
+
+function wireContentEvents(){
+  document.querySelectorAll('[data-view]').forEach(el=>{
+    el.addEventListener('click', ()=> setView(el.dataset.view));
+  });
+  document.querySelectorAll('[data-action="new-customer"]').forEach(el=>el.addEventListener('click', ()=>openCustomerModal(null)));
+  document.querySelectorAll('[data-action="edit-customer"]').forEach(el=>el.addEventListener('click', ()=>openCustomerModal(byId(state.customers, el.dataset.id))));
+  document.querySelectorAll('[data-action="delete-customer"]').forEach(el=>el.addEventListener('click', ()=>{
+    const c = byId(state.customers, el.dataset.id);
+    const linked = state.projects.some(p=>p.customerId===c.id) || state.invoices.some(i=>i.customerId===c.id);
+    if(linked){ showToast('Kan klant niet verwijderen: nog gekoppeld aan projecten of facturen'); return; }
+    confirmDialog('Klant verwijderen?', `Weet je zeker dat je ${esc(c.name)} wilt verwijderen?`, 'Verwijderen', async ()=>{
+      await deleteFromCollection('customers', c.id);
+      state.customers = state.customers.filter(x=>x.id!==c.id);
+      showToast('Klant verwijderd'); render();
+    });
+  }));
+  document.querySelectorAll('[data-action="new-project"]').forEach(el=>el.addEventListener('click', ()=>openProjectModal(null)));
+  document.querySelectorAll('[data-action="edit-project"]').forEach(el=>el.addEventListener('click', ()=>openProjectModal(byId(state.projects, el.dataset.id))));
+  document.querySelectorAll('[data-action="delete-project"]').forEach(el=>el.addEventListener('click', ()=>{
+    const p = byId(state.projects, el.dataset.id);
+    const hasHours = state.hours.some(h=>h.projectId===p.id);
+    const hasCosts = state.costs.some(c=>c.projectId===p.id);
+    const hasKms = state.kms.some(k=>k.projectId===p.id);
+    const hasInvoices = state.invoices.some(i=>i.projectId===p.id);
+    if(hasHours || hasCosts || hasKms || hasInvoices){
+      const parts = [];
+      if(hasHours) parts.push('uren');
+      if(hasCosts) parts.push('kosten');
+      if(hasKms) parts.push('kilometers');
+      if(hasInvoices) parts.push('facturen');
+      showToast(`Kan project niet verwijderen: nog gekoppeld aan ${parts.join(', ')}`);
+      return;
+    }
+    confirmDialog('Project verwijderen?', `Weet je zeker dat je ${esc(p.name)} wilt verwijderen?`, 'Verwijderen', async ()=>{
+      await deleteFromCollection('projects', p.id);
+      state.projects = state.projects.filter(x=>x.id!==p.id);
+      showToast('Project verwijderd'); render();
+    });
+  }));
+  document.querySelectorAll('[data-action="new-hour"]').forEach(el=>el.addEventListener('click', ()=>openHourModal(null)));
+  const urenProjectFilterSelect = document.getElementById('urenProjectFilterSelect');
+  if(urenProjectFilterSelect) urenProjectFilterSelect.addEventListener('change', (e)=>{ urenProjectFilter = e.target.value; render(); });
+  const urenShowBilledCheck = document.getElementById('urenShowBilledCheck');
+  if(urenShowBilledCheck) urenShowBilledCheck.addEventListener('change', (e)=>{ urenShowBilled = e.target.checked; render(); });
+  document.querySelectorAll('[data-action="edit-hour"]').forEach(el=>el.addEventListener('click', ()=>openHourModal(byId(state.hours, el.dataset.id))));
+  document.querySelectorAll('[data-action="delete-hour"]').forEach(el=>el.addEventListener('click', ()=>{
+    const h = byId(state.hours, el.dataset.id);
+    confirmDialog('Uren verwijderen?', `Deze registratie van ${fmtNum(h.hours,2)} uur wordt verwijderd.`, 'Verwijderen', async ()=>{
+      await deleteFromCollection('hours', h.id);
+      state.hours = state.hours.filter(x=>x.id!==h.id);
+      showToast('Uren verwijderd'); render();
+    });
+  }));
+  document.querySelectorAll('[data-action="new-cost"]').forEach(el=>el.addEventListener('click', ()=>openCostModal(null)));
+  document.querySelectorAll('[data-action="edit-cost"]').forEach(el=>el.addEventListener('click', ()=>openCostModal(byId(state.costs, el.dataset.id))));
+  document.querySelectorAll('[data-action="delete-cost"]').forEach(el=>el.addEventListener('click', ()=>{
+    const c = byId(state.costs, el.dataset.id);
+    confirmDialog('Kosten verwijderen?', `Deze kostenregel (${fmtMoney(c.amount)}) wordt verwijderd.`, 'Verwijderen', async ()=>{
+      await deleteFromCollection('costs', c.id);
+      state.costs = state.costs.filter(x=>x.id!==c.id);
+      showToast('Kosten verwijderd'); render();
+    });
+  }));
+  document.querySelectorAll('[data-action="new-km"]').forEach(el=>el.addEventListener('click', ()=>openKmModal(null)));
+  document.querySelectorAll('[data-action="edit-km"]').forEach(el=>el.addEventListener('click', ()=>openKmModal(byId(state.kms, el.dataset.id))));
+  document.querySelectorAll('[data-action="delete-km"]').forEach(el=>el.addEventListener('click', ()=>{
+    const k = byId(state.kms, el.dataset.id);
+    confirmDialog('Kilometers verwijderen?', `Deze registratie (${fmtMoney(kmAmount(k))}) wordt verwijderd.`, 'Verwijderen', async ()=>{
+      await deleteFromCollection('kms', k.id);
+      state.kms = state.kms.filter(x=>x.id!==k.id);
+      showToast('Kilometers verwijderd'); render();
+    });
+  }));
+  document.querySelectorAll('[data-action="new-invoice"]').forEach(el=>el.addEventListener('click', ()=>openInvoiceModal()));
+  document.querySelectorAll('[data-action="quick-invoice"]').forEach(el=>el.addEventListener('click', ()=>{
+    const p = byId(state.projects, el.dataset.id);
+    if(!p) return;
+    const hasHours = unbilledHoursForProject(p.id).length>0;
+    const hasCosts = unbilledCostsForProject(p.id).length>0;
+    const hasKms = unbilledKmsForProject(p.id).length>0;
+    if(!hasHours && !hasCosts && !hasKms){ showToast('Niets te factureren voor dit project'); return; }
+    openInvoiceModal({customerId: p.customerId, projectId: p.id, autoImportAll:true});
+  }));
+  document.querySelectorAll('[data-action="view-invoice"]').forEach(el=>el.addEventListener('click', ()=>openInvoiceDetail(el.dataset.id)));
+  document.querySelectorAll('[data-filter]').forEach(el=>el.addEventListener('click', ()=>{ invoiceFilter = el.dataset.filter; render(); }));
+}
+
+/* ---------------- boot ---------------- */
+async function boot(){
+  renderNav();
+  render();
+  await initBackend();
+  if(!useDb){ state.storageWarning = true; }
+  await loadAll();
+  renderNav();
+  render();
+}
+
+/* ---------------- login gate (Firebase Authentication) ---------------- */
+const LAST_ACTIVITY_KEY = LS_PREFIX + "lastActivity";
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minuten
+const gateEl = document.getElementById('loginGate');
+const appRootEl = document.getElementById('appRoot');
+const gateEmailInput = document.getElementById('loginGateEmail');
+const gateInput = document.getElementById('loginGateInput');
+const gateBtn = document.getElementById('loginGateBtn');
+const gateError = document.getElementById('loginGateError');
+document.getElementById('loginGateLogo').src = LOGO_DATA_URI;
+
+initFirebase();
+
+function markActivity(){
+  try{ localStorage.setItem(LAST_ACTIVITY_KEY, String(Date.now())); }catch(e){}
+}
+function lockApp(){
+  gateEl.classList.remove('hidden');
+  appRootEl.classList.remove('unlocked');
+  gateInput.value = '';
+  gateError.textContent = '';
+  closeDrawer();
+  document.getElementById('modalOverlay').classList.add('hidden');
+  if(fbAuth && fbAuth.currentUser){ fbAuth.signOut().catch(()=>{}); }
+  setTimeout(()=>gateEmailInput.focus(), 50);
+}
+function unlockApp(){
+  gateEl.classList.add('hidden');
+  appRootEl.classList.add('unlocked');
+  markActivity();
+  boot();
+}
+function authErrorMessage(err){
+  const code = err && err.code || '';
+  if(code.includes('wrong-password') || code.includes('invalid-credential') || code.includes('invalid-login-credentials')) return 'Onjuist e-mailadres of wachtwoord.';
+  if(code.includes('user-not-found')) return 'Onbekend e-mailadres.';
+  if(code.includes('invalid-email')) return 'Vul een geldig e-mailadres in.';
+  if(code.includes('too-many-requests')) return 'Te veel pogingen, probeer het over een paar minuten opnieuw.';
+  if(code.includes('network-request-failed')) return 'Geen verbinding — check je internet.';
+  return 'Inloggen mislukt: ' + (err && err.message ? err.message : 'onbekende fout');
+}
+function tryUnlock(){
+  if(!fbAuth){ gateError.textContent = 'Inloggen is nu niet beschikbaar, probeer het later opnieuw.'; return; }
+  const email = (gateEmailInput.value||'').trim();
+  const pwd = gateInput.value;
+  if(!email || !pwd){ gateError.textContent = 'Vul e-mailadres en wachtwoord in.'; return; }
+  gateBtn.disabled = true; gateError.textContent = '';
+  fbAuth.signInWithEmailAndPassword(email, pwd)
+    .then(()=>{ gateBtn.disabled = false; })
+    .catch(err=>{
+      gateBtn.disabled = false;
+      gateError.textContent = authErrorMessage(err);
+      gateInput.value = '';
+      gateInput.focus();
+    });
+}
+gateBtn.addEventListener('click', tryUnlock);
+gateInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryUnlock(); });
+gateEmailInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') gateInput.focus(); });
+
+const logoutDesktopBtn = document.getElementById('logoutBtnDesktop');
+const logoutMobileBtn = document.getElementById('logoutBtnMobile');
+if(logoutDesktopBtn) logoutDesktopBtn.addEventListener('click', lockApp);
+if(logoutMobileBtn) logoutMobileBtn.addEventListener('click', lockApp);
+
+// Activiteit bijhouden zodat we na een periode van inactiviteit automatisch kunnen uitloggen
+['mousedown','keydown','touchstart','scroll'].forEach(evt=>{
+  document.addEventListener(evt, ()=>{ if(!gateEl.classList.contains('hidden')) return; markActivity(); }, {passive:true});
+});
+setInterval(()=>{
+  if(gateEl.classList.contains('hidden')){
+    let last = 0;
+    try{ last = parseInt(localStorage.getItem(LAST_ACTIVITY_KEY)||'0',10); }catch(e){}
+    if(last && (Date.now() - last) > IDLE_TIMEOUT_MS){
+      lockApp();
+    }
+  }
+}, 30000);
+
+if(fbAuth){
+  fbAuth.onAuthStateChanged(user=>{
+    if(user){
+      let last = 0;
+      try{ last = parseInt(localStorage.getItem(LAST_ACTIVITY_KEY)||'0',10); }catch(e){}
+      if(last && (Date.now() - last) > IDLE_TIMEOUT_MS){
+        fbAuth.signOut().catch(()=>{});
+        return;
+      }
+      unlockApp();
+    } else {
+      gateEl.classList.remove('hidden');
+      appRootEl.classList.remove('unlocked');
+      gateEmailInput.focus();
+    }
+  });
+} else {
+  gateError.textContent = 'Inloggen kon niet worden geladen. Ververs de pagina.';
+}
+
+})();
+</script>
+</body>
+</html>
